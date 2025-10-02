@@ -79,42 +79,56 @@ const PlannerView = (props) => {
             <label htmlFor="taken" className={`block text-sm font-medium mb-1 ${
               theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
             }`}>
-              Classes Held
+              Classes Taken
             </label>
             <input 
               type="number" 
               id="taken" 
+              min="0"
+              max="999"
               value={classesTaken} 
-              onChange={e => setClassesTaken(e.target.value)} 
+              onChange={e => {
+                const value = e.target.value;
+                // Allow empty or valid number within range
+                if (value === '' || (parseInt(value) >= 0 && parseInt(value) <= 100)) {
+                  setClassesTaken(value);
+                }
+              }}
               className={`w-full p-2 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 ${
                 theme === 'dark' 
                   ? 'bg-gray-800 border border-gray-700' 
                   : 'bg-white border border-gray-300'
               }`} 
               placeholder="e.g., 25" 
-              min="0"
             />
           </div>
           <div>
-            <label htmlFor="skipped" className={`block text-sm font-medium mb-1 ${
-              theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-            }`}>
-              Classes Skipped
-            </label>
-            <input 
-              type="number" 
-              id="skipped" 
-              value={classesSkipped} 
-              onChange={e => setClassesSkipped(e.target.value)} 
-              className={`w-full p-2 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 ${
-                theme === 'dark' 
-                  ? 'bg-gray-800 border border-gray-700' 
-                  : 'bg-white border border-gray-300'
-              }`} 
-              placeholder="e.g., 5" 
-              min="0"
-            />
-          </div>
+              <label htmlFor="skipped" className={`block text-sm font-medium mb-1 ${
+                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                Classes Skipped
+              </label>
+              <input 
+                type="number" 
+                id="skipped" 
+                min="0"
+                max="999"
+                value={classesSkipped} 
+                onChange={e => {
+                  const value = e.target.value;
+                  // Allow empty or valid number within range
+                  if (value === '' || (parseInt(value) >= 0 && parseInt(value) <= 50)) {
+                    setClassesSkipped(value);
+                  }
+                }}
+                className={`w-full p-2 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 ${
+                  theme === 'dark' 
+                    ? 'bg-gray-800 border border-gray-700' 
+                    : 'bg-white border border-gray-300'
+                }`} 
+                placeholder="e.g., 5" 
+              />
+            </div>
         </div>
         
         {!calculationData.isValid && (
