@@ -6,8 +6,7 @@ import { formatDate } from '../utils/dateUtils.js';
 const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, theme, eventsMap }) => {
   const [viewDate, setViewDate] = useState(CALCULATION_DATE);
 
-  const handleMonthNav = (offset) =>
-    setViewDate(d => new Date(d.getFullYear(), d.getMonth() + offset, 1));
+  const handleMonthNav = (offset) => setViewDate(d => new Date(d.getFullYear(), d.getMonth() + offset, 1));
 
   const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
   const firstDayOfWeek = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay();
@@ -67,24 +66,32 @@ const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, them
           const isSkipped = new Set(skippedDates).has(dateStr);
           const isSunday = date.getDay() === 0;
 
+          // DEBUG: Log for October 2nd specifically
+          if (day === 2 && viewDate.getMonth() === 9) {
+            console.log('Oct 2 Debug:', {
+              dateStr,
+              event,
+              isSelectable,
+              hasEvent: !!event,
+              eventType: event?.type
+            });
+          }
+
           let dayClass = 'h-9 w-9 flex items-center justify-center rounded-full text-base transition-colors duration-150 relative ';
           let title = event ? event.name : '';
 
           if (isSkipped) {
             dayClass += 'bg-red-500 text-white font-bold ring-2 ring-red-400 scale-110';
+          } else if (event && (event.type === 'holiday' || event.type === 'exam')) {
+            // Holiday or exam - no green highlight, just normal text color
+            dayClass += theme === 'dark' ? 'text-gray-400' : 'text-black';
           } else if (isSelectable) {
-            dayClass += `cursor-pointer ${theme === 'dark' ? 'text-green-400 hover:bg-green-500/20' : 'text-green-700 hover:bg-green-200'}`;
+            // Only highlight as class day if no conflicting event
+            dayClass += `cursor-pointer ${theme === 'dark' ? 'bg-green-800 ring-1 ring-green-400/80 text-green-300 hover:bg-green-700' : 'bg-green-200 ring-1 ring-green-500 text-green-700 hover:bg-green-300'}`;
           } else if (isSunday) {
             dayClass += theme === 'dark' ? 'text-amber-600/70' : 'text-amber-600';
           } else {
             dayClass += theme === 'dark' ? 'text-gray-400' : 'text-black';
-          }
-
-          // Highlight oval for class days
-          if (isSelectable && !isSkipped) {
-            dayClass += theme === 'dark'
-              ? ' bg-green-800 ring-1 ring-green-400/80 text-green-300 hover:bg-green-700'
-              : ' bg-green-200 ring-1 ring-green-500 text-green-700 hover:bg-green-300';
           }
 
           let eventDot = null;
@@ -100,7 +107,7 @@ const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, them
             <button
               key={day}
               title={title}
-              onClick={() => isSelectable && onDateToggle(dateStr)}
+              onClick={() => isSelectable && !event && onDateToggle(dateStr)}
               disabled={!isSelectable || !!event}
               className={dayClass}
             >
