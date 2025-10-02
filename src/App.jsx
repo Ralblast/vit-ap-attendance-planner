@@ -2,13 +2,13 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Aperture, BookOpen, BarChart3, CheckCircle, AlertTriangle, Target, Trash2, CalendarDays, RefreshCcw, Info, Sun, Moon, Mail, HelpCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-import LiveClock from './Components/LiveClock';
-import ThemeToggle from './Components/ThemeToggle';
-import InfoCard from './Components/InfoCard';
-import AttendanceGauge from './Components/AttendanceGauge';
-import CalendarPlanner from './Components/CalendarPlanner';
-import PlannerView from './Components/PlannerView';
-import AppFooter from './Components/AppFooter';
+import LiveClock from './components/LiveClock';
+import ThemeToggle from './components/ThemeToggle';
+import InfoCard from './components/InfoCard';
+import AttendanceGauge from './components/AttendanceGauge';
+import CalendarPlanner from './components/CalendarPlanner';
+import PlannerView from './components/PlannerView';
+import AppFooter from './components/AppFooter';
 
 import { academicCalendar } from './data/academicCalendar.js';
 import { theorySlots } from './data/slotData.js';
