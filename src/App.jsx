@@ -3,12 +3,12 @@ import { Aperture, BookOpen, BarChart3, CheckCircle, AlertTriangle, Target, Tras
 import { motion, AnimatePresence } from 'framer-motion';
 
 import LiveClock from './components/LiveClock';
-import ThemeToggle from './components/ThemeToggle.jsx';
-import InfoCard from './components/InfoCard.jsx';
-import AttendanceGauge from './components/AttendanceGauge.jsx';
-import CalendarPlanner from './components/CalendarPlanner.jsx';
-import PlannerView from './components/PlannerView.jsx';
-import AppFooter from './components/AppFooter.jsx';
+import ThemeToggle from './components/ThemeToggle';
+import InfoCard from './components/InfoCard';
+import AttendanceGauge from './components/AttendanceGauge';
+import CalendarPlanner from './components/CalendarPlanner';
+import PlannerView from './components/PlannerView';
+import AppFooter from './components/AppFooter';
 
 import { academicCalendar } from './data/academicCalendar.js';
 import { theorySlots } from './data/slotData.js';
