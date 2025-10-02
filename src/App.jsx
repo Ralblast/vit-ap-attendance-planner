@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Aperture, BookOpen, BarChart3, CheckCircle, AlertTriangle, Target, Trash2, CalendarDays, RefreshCcw, Info, Sun, Moon, Mail, HelpCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-import LiveClock from './components/LiveClock.jsx';
+import LiveClock from './components/LiveClock';
 import ThemeToggle from './components/ThemeToggle.jsx';
 import InfoCard from './components/InfoCard.jsx';
 import AttendanceGauge from './components/AttendanceGauge.jsx';
