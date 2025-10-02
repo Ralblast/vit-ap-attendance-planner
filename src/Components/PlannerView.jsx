@@ -47,7 +47,21 @@ const PlannerView = (props) => {
               Current Status for <span className="text-indigo-400">{selectedSlot.slot}</span>
             </h2>
             <p className={`text-sm ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
-              Input classes held up to (but not including) {new Date('2025-10-02').toLocaleDateString('en-GB')}
+                {(() => {
+                  const now = new Date();
+                  const yesterday = new Date(now);
+                  yesterday.setDate(yesterday.getDate() - 1);
+                  const currentHour = now.getHours();
+                  
+                  // Classes end at 8 PM (20:00), so after 9 PM consider day complete
+                  const isDayComplete = currentHour >= 21; // After 9 PM
+                  
+                  if (isDayComplete) {
+                    return `Input classes held up to ${now.toLocaleDateString('en-GB')} (today). Today's classes are completed. Plan tomorrow onwards.`;
+                  } else {
+                    return `Input classes held up to ${yesterday.toLocaleDateString('en-GB')} (yesterday). Use calendar to plan today's classes.`;
+                  }
+                })()}
             </p>
           </div>
           <button 

@@ -25,22 +25,23 @@ export default function App() {
   const [showResetNotification, setShowResetNotification] = useState(false);
   const isInitialMount = useRef(true);
 
-  const eventsMap = useMemo(() => {
-    const map = new Map();
-    academicCalendar.forEach(event => {
-      if (event.date) {
-        map.set(event.date, { type: event.type, name: event.name });
-      } else if (event.startDate && event.endDate) {
-        let current = new Date(event.startDate + 'T00:00:00');
-        const end = new Date(event.endDate + 'T00:00:00');
-        while (current <= end) {
-          map.set(formatDate(current), { type: event.type, name: event.name });
-          current.setDate(current.getDate() + 1);
-        }
+const eventsMap = useMemo(() => {
+  const map = new Map();
+  academicCalendar.forEach(event => {
+    if (event.date) {
+      map.set(formatDate(new Date(event.date + 'T00:00:00')), { type: event.type, name: event.name });
+    } else if (event.startDate && event.endDate) {
+      let current = new Date(event.startDate + 'T00:00:00');
+      const end = new Date(event.endDate + 'T00:00:00');
+      while (current <= end) {
+        map.set(formatDate(current), { type: event.type, name: event.name });
+        current.setDate(current.getDate() + 1);
       }
-    });
-    return map;
-  }, []);
+    }
+  });
+  return map;
+}, []);
+
 
   const holidayDateSet = useMemo(() => {
     const dates = new Set();
