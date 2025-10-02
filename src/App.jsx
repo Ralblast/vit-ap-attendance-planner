@@ -96,6 +96,16 @@ const eventsMap = useMemo(() => {
     }
   }, [classesTaken]);
 
+      // Clear data when slot changes
+    useEffect(() => {
+      if (selectedSlot) {
+        setClassesTaken('');
+        setClassesSkipped('');
+        setSkippedDates([]);
+      }
+    }, [selectedSlot?.slot]);
+
+
   const handleDateToggle = useCallback((dateStr) => {
     setSkippedDates(prev => {
       const newDates = new Set(prev);
@@ -117,6 +127,9 @@ const eventsMap = useMemo(() => {
   const mainBg = theme === 'dark'
     ? { background: 'radial-gradient(circle, rgba(31,41,55,1) 0%, rgba(17,24,39,1) 100%)' }
     : { background: 'radial-gradient(circle, rgba(243, 244, 246, 1) 0%, rgba(229, 231, 235, 1) 100%)' };
+
+
+
 
   return (
     <div className={`min-h-screen font-sans flex flex-col ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`} style={mainBg}>
