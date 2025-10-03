@@ -180,14 +180,19 @@ const PlannerView = (props) => {
                 </h2>
                 <AnimatePresence>
                   {showResetNotification && (
-                    <motion.div 
+                   <motion.div 
                       initial={{opacity: 0, y: 10}} 
                       animate={{opacity: 1, y: 0}} 
                       exit={{opacity: 0, y: 10}} 
-                      className="flex items-center gap-2 text-sm bg-yellow-500/10 text-yellow-300 px-3 py-1 rounded-full"
+                      className={`flex items-center gap-2 text-sm px-3 py-1 rounded-full ${
+                        theme === 'dark' 
+                          ? 'bg-yellow-500/10 text-yellow-300' 
+                          : 'bg-yellow-200 text-yellow-800'
+                      }`}
                     >
                       <Info size={14}/> Future plan reset.
                     </motion.div>
+
                   )}
                 </AnimatePresence>
               </div>
