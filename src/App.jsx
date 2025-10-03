@@ -38,6 +38,7 @@ export default function App() {
   const [skippedDates, setSkippedDates] = useState([]);
   const [showResetNotification, setShowResetNotification] = useState(false);
   const isInitialMount = useRef(true);
+  const prevSlotRef = useRef(null);
 
   useEffect(() => {
     if (selectedYear) {
@@ -46,6 +47,7 @@ export default function App() {
       setClassesTaken('');
       setClassesSkipped('');
       setSkippedDates([]);
+      prevSlotRef.current = null;
     }
   }, [selectedYear]);
 
@@ -55,8 +57,20 @@ export default function App() {
       setClassesTaken('');
       setClassesSkipped('');
       setSkippedDates([]);
+      prevSlotRef.current = null;
     }
   }, [selectedCredit]);
+
+  useEffect(() => {
+    if (selectedSlot) {
+      if (prevSlotRef.current !== selectedSlot.slot) {
+        prevSlotRef.current = selectedSlot.slot;
+        setClassesTaken('');
+        setClassesSkipped('');
+        setSkippedDates([]);
+      }
+    }
+  }, [selectedSlot]);
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -75,10 +89,7 @@ export default function App() {
     const map = new Map();
     academicCalendar.forEach(event => {
       if (event.date) {
-        map.set(
-          formatDate(new Date(event.date + 'T00:00:00')),
-          { type: event.type, name: event.name }
-        );
+        map.set(formatDate(new Date(event.date + 'T00:00:00')), { type: event.type, name: event.name });
       } else if (event.startDate && event.endDate) {
         let current = new Date(event.startDate + 'T00:00:00');
         const end = new Date(event.endDate + 'T00:00:00');
@@ -157,6 +168,7 @@ export default function App() {
     setClassesTaken('');
     setClassesSkipped('');
     setSkippedDates([]);
+    prevSlotRef.current = null;
   };
 
   const mainBg =
@@ -194,7 +206,7 @@ export default function App() {
       <div className="flex flex-1 flex-col md:flex-row overflow-y-hidden">
         <aside
           className={`w-full md:w-80 p-6 flex-shrink-0 border-r ${
-            theme === 'dark' ? 'bg-black/20 border-gray-800' : 'bg-white/50 border-gray-200'
+            theme === 'dark' ? 'bg-black/20 border-gray-800' : 'bg-gray-100 border-gray-300'
           } overflow-y-auto`}
         >
           <div className="space-y-4">
@@ -226,12 +238,14 @@ export default function App() {
                     <button
                       key={year.key}
                       onClick={() => setSelectedYear(year.key)}
-                      className={`py-3 px-4 rounded-lg text-left transition-all ${
+                      className={`py-3 px-4 rounded-lg text-left transition-all border-2 ${
                         theme === 'dark'
-                          ? 'bg-gray-600 hover:bg-indigo-600 text-white'
+                          ? year.key === selectedYear
+                            ? 'bg-indigo-600 text-white border-indigo-500'
+                            : 'bg-gray-600 hover:bg-indigo-600 text-white border-transparent'
                           : year.key === selectedYear
-                          ? 'bg-indigo-600 text-white border border-indigo-600'
-                          : 'bg-white hover:bg-indigo-600 hover:text-white text-gray-700 border border-gray-300'
+                          ? 'bg-indigo-600 text-white border-indigo-500'
+                          : 'bg-gray-100 hover:bg-indigo-600 hover:text-white text-gray-700 border-gray-300'
                       }`}
                     >
                       <div className="font-medium">{year.label}</div>
@@ -277,7 +291,6 @@ export default function App() {
                     </button>
                   </div>
                 </div>
-
                 <div className={`p-4 rounded-lg ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}>
                   <h3 className={`font-semibold mb-3 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                     Select Credits
@@ -292,7 +305,7 @@ export default function App() {
                             ? 'bg-indigo-600 text-white border border-indigo-600'
                             : theme === 'dark'
                             ? 'bg-gray-600 hover:bg-gray-500 text-gray-300'
-                            : 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300'
+                            : 'bg-gray-100 hover:bg-gray-50 text-gray-700 border border-gray-300'
                         }`}
                       >
                         {creditType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
@@ -352,18 +365,9 @@ export default function App() {
                   className="flex h-full items-center justify-center text-center"
                 >
                   <div>
-                    <BookOpen
-                      size={48}
-                      className={`mx-auto ${
-                        theme === 'dark' ? 'text-gray-600' : 'text-gray-400'
-                      } mb-4`}
-                    />
-                    <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                      Welcome!
-                    </h2>
-                    <p className={`mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Select your course details from the sidebar to begin.
-                    </p>
+                    <BookOpen size={48} className={`mx-auto ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'} mb-4`} />
+                    <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Welcome!</h2>
+                    <p className={`mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Select your course details from the sidebar to begin.</p>
                   </div>
                 </motion.div>
               ) : (
