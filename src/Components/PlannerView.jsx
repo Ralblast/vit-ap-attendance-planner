@@ -59,7 +59,7 @@ const PlannerView = ({ theme, selectedSlot, handleStartOver, plannerData }) => {
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label htmlFor="taken" className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-              Total Classes (from portal)
+              Total Classes (from VTOP)
             </label>
             <input 
               type="number" 
@@ -74,7 +74,7 @@ const PlannerView = ({ theme, selectedSlot, handleStartOver, plannerData }) => {
           </div>
           <div>
               <label htmlFor="attended" className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                Classes Attended (from portal)
+                Classes Attended (from VTOP)
               </label>
               <input 
                 type="number" 
