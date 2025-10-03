@@ -23,7 +23,6 @@ import { academicCalendar } from './data/academicCalendar.js';
 import { getSlotsForYear, createSlotData } from './data/slotData.js';
 import {
   MIN_ATTENDANCE,
-  CALCULATION_DATE,
   LAST_INSTRUCTIONAL_DAY
 } from './data/constants.js';
 import { formatDate } from './utils/dateUtils.js';
@@ -115,7 +114,7 @@ export default function App() {
   const remainingClassDates = useMemo(() => {
     if (!selectedSlot) return [];
     let dates = [];
-    let currentDate = new Date(CALCULATION_DATE);
+     let currentDate = new Date(); // Formerly: new Date(CALCULATION_DATE)
     while (currentDate <= LAST_INSTRUCTIONAL_DAY) {
       if (
         selectedSlot.days.includes(currentDate.getDay()) &&

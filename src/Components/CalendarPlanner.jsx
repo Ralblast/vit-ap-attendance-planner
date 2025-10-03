@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Trash2 } from 'lucide-react';
-import { CALCULATION_DATE } from '../data/constants.js';
+// import { CALCULATION_DATE } from '../data/constants.js';
 import { formatDate } from '../utils/dateUtils.js';
 
 const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, theme, eventsMap }) => {
-  const [viewDate, setViewDate] = useState(CALCULATION_DATE);
+  const [viewDate, setViewDate] = useState(new Date());
 
   const handleMonthNav = (offset) => setViewDate(d => new Date(d.getFullYear(), d.getMonth() + offset, 1));
 
