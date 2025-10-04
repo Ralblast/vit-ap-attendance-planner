@@ -36,10 +36,12 @@ const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, even
   );
 
   return (
-    // --- CHANGE 1: Added `relative` class to allow for absolute positioning inside ---
-    <div className={`p-6 rounded-xl shadow-md border relative ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}>
+    <div className={`p-6 rounded-xl relative ${
+        theme === 'dark' 
+        ? 'bg-gray-800' 
+        : 'bg-slate-100'
+    }`}>
       
-      {/* --- CHANGE 2: Text is now positioned absolutely, not affecting layout --- */}
       <p className={`absolute top-2 left-0 right-0 text-center text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>
         Tip: Click on green days to skip.
       </p>
@@ -75,11 +77,13 @@ const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, even
           const isSunday = date.getDay() === 0;
 
           let dayClass = 'h-9 w-9 flex items-center justify-center rounded-full text-base transition-colors duration-150 relative ';
-          let title = event ? event.name : '';
+          let title = event ? event.name : 'Click to plan a skip';
 
           if (isSkipped) {
             dayClass += 'bg-red-500 text-white font-bold ring-2 ring-red-400 scale-110';
+            title = 'Click to un-skip';
           } else if (event && (event.type === 'holiday' || event.type === 'exam')) {
+            // --- THE FIX: Removed 'cursor-not-allowed' from this line ---
             dayClass += theme === 'dark' ? 'text-gray-400' : 'text-black';
           } else if (isSelectable) {
             dayClass += `cursor-pointer ${theme === 'dark' ? 'bg-green-800 ring-1 ring-green-400/80 text-green-300 hover:bg-green-700' : 'bg-green-200 ring-1 ring-green-500 text-green-700 hover:bg-green-300'}`;
@@ -97,13 +101,20 @@ const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, even
               eventDot = <div className="absolute bottom-1.5 w-1.5 h-1.5 bg-indigo-500 rounded-full"></div>;
             }
           }
+          
+          const isDisabled = !isSelectable && !event;
+          const handleClick = () => {
+            if (isSelectable && !event) {
+              onDateToggle(dateStr);
+            }
+          };
 
           return (
             <button
               key={day}
               title={title}
-              onClick={() => isSelectable && !event && onDateToggle(dateStr)}
-              disabled={!isSelectable || !!event}
+              onClick={handleClick}
+              disabled={isDisabled}
               className={dayClass}
             >
               {day}
