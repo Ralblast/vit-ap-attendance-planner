@@ -25,7 +25,7 @@ const AppFooter = () => {
               </span>
               <br />
               <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                We are not liable for any attendance-related issues.
+                I'm not liable for any attendance-related issues.
               </span>
             </div>
           </div>
