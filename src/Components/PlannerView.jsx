@@ -47,19 +47,26 @@ const PlannerView = ({ selectedSlot, handleStartOver, plannerData, lastInstructi
       exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }} 
       className="space-y-8"
     >
-      <div ref={statusRef}>
+      <div 
+        ref={statusRef} 
+        className={`rounded-xl p-6 border shadow-lg ${
+          theme === 'dark' 
+          ? 'bg-gray-800/50 border-gray-700' 
+          : 'bg-white border-slate-200 shadow-slate-200/60'
+        }`}
+      >
         <div className="flex justify-between items-start">
           <div>
             <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
               Current Status for <span className="text-indigo-400">{selectedSlot.slot}</span>
             </h2>
-            <p className={`text-sm ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
+            <p className={`mt-1 text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
               Enter your attendance details exactly as they appear on the VTOP portal.
             </p>
           </div>
           <button 
             onClick={handleStartOver} 
-            className={`flex items-center gap-2 text-sm transition-colors ${
+            className={`flex-shrink-0 ml-4 flex items-center gap-2 text-sm transition-colors ${
               theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'
             }`}
           >
@@ -79,7 +86,7 @@ const PlannerView = ({ selectedSlot, handleStartOver, plannerData, lastInstructi
               max="999"
               value={classesTaken} 
               onChange={e => setClassesTaken(e.target.value)}
-              className={`w-full p-2 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 ${theme === 'dark' ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-300'}`} 
+              className={`w-full p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 border ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-slate-50 border-slate-300'}`} 
               placeholder="e.g., 42" 
             />
           </div>
@@ -94,7 +101,7 @@ const PlannerView = ({ selectedSlot, handleStartOver, plannerData, lastInstructi
                 max="999"
                 value={classesAttended} 
                 onChange={e => setClassesAttended(e.target.value)}
-                className={`w-full p-2 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 ${theme === 'dark' ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-300'}`} 
+                className={`w-full p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 border ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-slate-50 border-slate-300'}`} 
                 placeholder="e.g., 36" 
               />
             </div>
@@ -141,7 +148,7 @@ const PlannerView = ({ selectedSlot, handleStartOver, plannerData, lastInstructi
       </AnimatePresence>
             
       <div ref={projectionRef}>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 px-2">
           <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
             Future Projection
           </h2>
@@ -159,6 +166,7 @@ const PlannerView = ({ selectedSlot, handleStartOver, plannerData, lastInstructi
           </AnimatePresence>
         </div>
         
+        {/* --- THIS IS THE KEY LAYOUT CONTAINER --- */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           <CalendarPlanner 
             classDates={remainingClassDates} 
@@ -174,21 +182,25 @@ const PlannerView = ({ selectedSlot, handleStartOver, plannerData, lastInstructi
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className={`p-6 rounded-xl border space-y-4 flex flex-col items-center ${theme === 'dark' ? 'bg-gray-800/50 border-gray-700' : 'bg-white/60 border-gray-200'}`}
+                className={`p-6 rounded-xl border shadow-lg space-y-4 flex flex-col items-center ${
+                    theme === 'dark' 
+                    ? 'bg-gray-800/50 border-gray-700' 
+                    : 'bg-white border-slate-200 shadow-slate-200/60'
+                }`}
               >
                 <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                   Projected Final Attendance
                 </h3>
                 <AttendanceGauge percentage={calculationData.projectedAtt} />
                 {calculationData.projectedAtt >= MIN_ATTENDANCE ? (
-                  <div className={`flex items-center gap-3 p-3 rounded-lg w-full ${theme === 'dark' ? 'bg-green-500/10 text-green-300' : 'bg-green-100 text-green-700'}`}>
+                  <div className={`flex items-center gap-3 p-3 rounded-lg w-full ${theme === 'dark' ? 'bg-green-500/10 text-green-300' : 'bg-green-100 text-green-800'}`}>
                     <CheckCircle/> 
                     <p className="text-sm">
                       This plan keeps you safely above the {MIN_ATTENDANCE}% threshold.
                     </p>
                   </div>
                 ) : (
-                  <div className={`flex items-center gap-3 p-3 rounded-lg w-full ${theme === 'dark' ? 'bg-red-500/10 text-red-300' : 'bg-red-100 text-red-700'}`}>
+                  <div className={`flex items-center gap-3 p-3 rounded-lg w-full ${theme === 'dark' ? 'bg-red-500/10 text-red-300' : 'bg-red-100 text-red-800'}`}>
                     <AlertTriangle/> 
                     <p className="text-sm">
                       Warning! This will drop you below the required {MIN_ATTENDANCE}%.
