@@ -33,27 +33,28 @@ export default function App() {
   const { theme } = useTheme();
   const [selectedSlot, setSelectedSlot] = useState(null);
   
-  // Fetch semester data using our new hook
   const { data: semesterData, isLoading, error } = useSemesterData();
 
-  // The planner hook now receives the calendar and last day as arguments
   const plannerData = useAttendancePlanner(
     selectedSlot,
     semesterData?.academicCalendar,
     semesterData?.lastInstructionalDay
   );
 
-  const mainBg =
-    theme === 'dark'
-      ? { background: 'radial-gradient(circle, rgba(31,41,55,1) 0%, rgba(17,24,39,1) 100%)' }
-      : { background: 'radial-gradient(circle, rgba(243,244,246,1) 0%, rgba(229,231,235,1) 100%)' };
+  const darkBg = 'radial-gradient(circle, rgba(31,41,55,1) 0%, rgba(17,24,39,1) 100%)';
 
   return (
     <div
-      className={`min-h-screen font-sans flex flex-col ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}
-      style={mainBg}
+      className={`min-h-screen font-sans flex flex-col ${
+        theme === 'dark' ? 'text-gray-200' : 'bg-slate-100 text-gray-800'
+      }`}
+      style={theme === 'dark' ? { background: darkBg } : {}}
     >
-      <header className={`flex justify-between items-center p-4 border-b ${theme === 'dark' ? 'bg-gray-900/50 border-gray-800' : 'bg-white/50 border-gray-200'}`}>
+      <header className={`flex justify-between items-center p-4 border-b ${
+        theme === 'dark' 
+        ? 'bg-gray-900/50 border-gray-800' 
+        : 'bg-white/80 backdrop-blur-sm border-slate-200'
+      }`}>
         <div className="flex items-center gap-3">
           <Aperture className="text-indigo-400" size={32} />
           <div>
@@ -80,7 +81,8 @@ export default function App() {
               slotsByYear={semesterData.slotsByYear}
             />
 
-            <main className="flex-1 p-6 md:p-8 overflow-y-auto flex flex-col">
+            {/* --- UPDATED: Added more responsive padding for mobile --- */}
+            <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto flex flex-col">
               <div className="flex-grow">
                 <AnimatePresence mode="wait">
                   {!selectedSlot ? (

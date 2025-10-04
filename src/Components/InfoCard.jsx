@@ -6,20 +6,21 @@ const InfoCard = ({ icon, title, value, subtext, color = 'text-gray-200' }) => {
 
   return (
     <div
-      className={`backdrop-blur-sm p-4 rounded-xl shadow-lg flex items-center space-x-4 border ${
+      className={`p-4 rounded-xl shadow-lg flex items-center space-x-4 border ${
         theme === 'dark'
           ? 'bg-gray-800/50 border-gray-700'
-          : 'bg-white/60 border-gray-200 shadow-gray-200/50'
+          : 'bg-white border-slate-200 shadow-slate-200/60' 
       }`}
     >
-      <div className={`p-3 rounded-lg ${theme === 'dark' ? 'bg-gray-900/50' : 'bg-gray-100'} ${color}`}>
+      <div className={`p-3 rounded-lg ${theme === 'dark' ? 'bg-gray-900/50' : 'bg-slate-100'} ${color}`}>
         {icon}
       </div>
       <div>
         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
           {title}
         </p>
-        <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+        {/* --- UPDATED: Responsive font size --- */}
+        <p className={`text-xl sm:text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
           {value}
         </p>
         {subtext && (

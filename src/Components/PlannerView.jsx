@@ -49,7 +49,7 @@ const PlannerView = ({ selectedSlot, handleStartOver, plannerData, lastInstructi
     >
       <div 
         ref={statusRef} 
-        className={`rounded-xl p-6 border shadow-lg ${
+        className={`rounded-xl p-4 sm:p-6 border shadow-lg ${
           theme === 'dark' 
           ? 'bg-gray-800/50 border-gray-700' 
           : 'bg-white border-slate-200 shadow-slate-200/60'
@@ -57,7 +57,8 @@ const PlannerView = ({ selectedSlot, handleStartOver, plannerData, lastInstructi
       >
         <div className="flex justify-between items-start">
           <div>
-            <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+            {/* --- UPDATED: Responsive font size --- */}
+            <h2 className={`text-xl sm:text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
               Current Status for <span className="text-indigo-400">{selectedSlot.slot}</span>
             </h2>
             <p className={`mt-1 text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -149,7 +150,8 @@ const PlannerView = ({ selectedSlot, handleStartOver, plannerData, lastInstructi
             
       <div ref={projectionRef}>
         <div className="flex items-center justify-between mb-4 px-2">
-          <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+          {/* --- UPDATED: Responsive font size --- */}
+          <h2 className={`text-xl sm:text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
             Future Projection
           </h2>
           <AnimatePresence>
@@ -166,7 +168,6 @@ const PlannerView = ({ selectedSlot, handleStartOver, plannerData, lastInstructi
           </AnimatePresence>
         </div>
         
-        {/* --- THIS IS THE KEY LAYOUT CONTAINER --- */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           <CalendarPlanner 
             classDates={remainingClassDates} 
@@ -182,7 +183,7 @@ const PlannerView = ({ selectedSlot, handleStartOver, plannerData, lastInstructi
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className={`p-6 rounded-xl border shadow-lg space-y-4 flex flex-col items-center ${
+                className={`p-4 sm:p-6 rounded-xl border shadow-lg space-y-4 flex flex-col items-center ${
                     theme === 'dark' 
                     ? 'bg-gray-800/50 border-gray-700' 
                     : 'bg-white border-slate-200 shadow-slate-200/60'

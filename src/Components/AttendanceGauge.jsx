@@ -10,35 +10,37 @@ const AttendanceGauge = ({ percentage }) => {
   const color = isSafe ? '#4ade80' : '#f87171';
   
   return (
-    <div className="relative flex items-center justify-center">
-      <svg className="transform -rotate-90 w-48 h-48">
+    // --- UPDATED: Responsive size for the whole container ---
+    <div className="relative flex items-center justify-center w-40 h-40 sm:w-48 sm:h-48">
+      <svg className="transform -rotate-90 w-full h-full">
         <circle 
-          cx="96" 
-          cy="96" 
-          r="80" 
+          cx="50%" 
+          cy="50%" 
+          r="40%" 
           stroke={theme === 'dark' ? '#374151' : '#e5e7eb'} 
-          strokeWidth="16" 
+          strokeWidth="12%" 
           fill="transparent" 
         />
         <motion.circle 
-          cx="96" 
-          cy="96" 
-          r="80" 
+          cx="50%" 
+          cy="50%" 
+          r="40%" 
           stroke={color} 
-          strokeWidth="16" 
+          strokeWidth="12%" 
           fill="transparent" 
           strokeLinecap="round" 
-          strokeDasharray="502.65" 
-          initial={{ strokeDashoffset: 502.65 }} 
-          animate={{ strokeDashoffset: 502.65 * (1 - clampedPercentage / 100) }} 
+          strokeDasharray="251.32" // 2 * pi * 40
+          initial={{ strokeDashoffset: 251.32 }} 
+          animate={{ strokeDashoffset: 251.32 * (1 - clampedPercentage / 100) }} 
           transition={{ duration: 1.5, ease: "easeInOut" }} 
         />
       </svg>
       <div className="absolute flex flex-col items-center">
-        <span className={`text-4xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+        {/* --- UPDATED: Responsive font size --- */}
+        <span className={`text-3xl sm:text-4xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
           {clampedPercentage.toFixed(1)}%
         </span>
-        <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+        <span className={`text-xs sm:text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
           Projected
         </span>
       </div>
