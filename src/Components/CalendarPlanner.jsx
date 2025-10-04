@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Trash2 } from 'lucide-react';
-// import { CALCULATION_DATE } from '../data/constants.js';
 import { formatDate } from '../utils/dateUtils.js';
+import { useTheme } from '../contexts/ThemeContext.jsx';
 
-const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, theme, eventsMap }) => {
+const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, eventsMap }) => {
+  const { theme } = useTheme();
   const [viewDate, setViewDate] = useState(new Date());
 
   const handleMonthNav = (offset) => setViewDate(d => new Date(d.getFullYear(), d.getMonth() + offset, 1));
@@ -35,7 +36,14 @@ const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, them
   );
 
   return (
-    <div className={`p-6 rounded-xl shadow-md border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}>
+    // --- CHANGE 1: Added `relative` class to allow for absolute positioning inside ---
+    <div className={`p-6 rounded-xl shadow-md border relative ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}>
+      
+      {/* --- CHANGE 2: Text is now positioned absolutely, not affecting layout --- */}
+      <p className={`absolute top-2 left-0 right-0 text-center text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>
+        Tip: Click on green days to skip.
+      </p>
+
       <div className="flex justify-between items-center mb-6 px-2">
         <button onClick={() => handleMonthNav(-1)} className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-200 text-gray-500'}`}>
           &lt;
@@ -66,27 +74,14 @@ const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, them
           const isSkipped = new Set(skippedDates).has(dateStr);
           const isSunday = date.getDay() === 0;
 
-          // DEBUG: Log for October 2nd specifically
-          if (day === 2 && viewDate.getMonth() === 9) {
-            console.log('Oct 2 Debug:', {
-              dateStr,
-              event,
-              isSelectable,
-              hasEvent: !!event,
-              eventType: event?.type
-            });
-          }
-
           let dayClass = 'h-9 w-9 flex items-center justify-center rounded-full text-base transition-colors duration-150 relative ';
           let title = event ? event.name : '';
 
           if (isSkipped) {
             dayClass += 'bg-red-500 text-white font-bold ring-2 ring-red-400 scale-110';
           } else if (event && (event.type === 'holiday' || event.type === 'exam')) {
-            // Holiday or exam - no green highlight, just normal text color
             dayClass += theme === 'dark' ? 'text-gray-400' : 'text-black';
           } else if (isSelectable) {
-            // Only highlight as class day if no conflicting event
             dayClass += `cursor-pointer ${theme === 'dark' ? 'bg-green-800 ring-1 ring-green-400/80 text-green-300 hover:bg-green-700' : 'bg-green-200 ring-1 ring-green-500 text-green-700 hover:bg-green-300'}`;
           } else if (isSunday) {
             dayClass += theme === 'dark' ? 'text-amber-600/70' : 'text-amber-600';

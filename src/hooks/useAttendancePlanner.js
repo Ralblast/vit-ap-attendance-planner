@@ -9,9 +9,9 @@ export function useAttendancePlanner(selectedSlot) {
   const [skippedDates, setSkippedDates] = useState([]);
   const [showResetNotification, setShowResetNotification] = useState(false);
   
-  const isInitialMount = useRef(true);
   const prevSlotRef = useRef(null);
 
+  // Effect to reset everything when a new course slot is chosen
   useEffect(() => {
     if (selectedSlot) {
       if (prevSlotRef.current !== selectedSlot.slot) {
@@ -23,18 +23,15 @@ export function useAttendancePlanner(selectedSlot) {
     }
   }, [selectedSlot]);
 
+  // Effect to show a notification when past attendance is updated
   useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    setSkippedDates([]);
-    if (parseInt(classesTaken) > 0) {
+    // This effect now ONLY shows a notification. It no longer resets the skippedDates array.
+    if (classesTaken && parseInt(classesTaken) > 0) {
       setShowResetNotification(true);
       const timer = setTimeout(() => setShowResetNotification(false), 4000);
       return () => clearTimeout(timer);
     }
-  }, [classesTaken]);
+  }, [classesTaken, classesAttended]);
 
   const eventsMap = useMemo(() => {
     const map = new Map();

@@ -5,8 +5,10 @@ import InfoCard from './InfoCard.jsx';
 import CalendarPlanner from './CalendarPlanner.jsx';
 import AttendanceGauge from './AttendanceGauge.jsx';
 import { MIN_ATTENDANCE, LAST_INSTRUCTIONAL_DAY } from '../data/constants.js';
+import { useTheme } from '../contexts/ThemeContext.jsx';
 
-const PlannerView = ({ theme, selectedSlot, handleStartOver, plannerData }) => {
+const PlannerView = ({ selectedSlot, handleStartOver, plannerData }) => {
+  const { theme } = useTheme();
   const {
     classesTaken, setClassesTaken,
     classesAttended, setClassesAttended,
@@ -19,13 +21,28 @@ const PlannerView = ({ theme, selectedSlot, handleStartOver, plannerData }) => {
     handleDateToggle,
   } = plannerData;
 
+  // --- REFS FOR SCROLLING ---
   const statusRef = useRef(null);
+  const projectionRef = useRef(null); // New ref for the projection section
 
+  // Effect 1: Scrolls to the input section when the view first loads
   useEffect(() => {
     if (statusRef.current) {
-      statusRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      statusRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, []);
+
+  // --- NEW ---
+  // Effect 2: Scrolls to the projection section ONLY when it first appears
+  useEffect(() => {
+    if (showProjection && projectionRef.current) {
+      // A small delay ensures the section is fully rendered before scrolling
+      setTimeout(() => {
+        projectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100); 
+    }
+  }, [showProjection]); // This runs whenever `showProjection` changes
+
 
   return (
     <motion.div 
@@ -35,7 +52,7 @@ const PlannerView = ({ theme, selectedSlot, handleStartOver, plannerData }) => {
       exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }} 
       className="space-y-8"
     >
-      {/* Section 1: Current Status & Inputs (Always visible) */}
+      {/* Section 1: Current Status & Inputs */}
       <div ref={statusRef}>
         <div className="flex justify-between items-start">
           <div>
@@ -96,7 +113,7 @@ const PlannerView = ({ theme, selectedSlot, handleStartOver, plannerData }) => {
         )}
       </div>
 
-      {/* Section 2: Info Cards (Conditionally visible) */}
+      {/* Section 2: Info Cards */}
       <AnimatePresence>
         {showProjection && (
           <motion.div
@@ -106,7 +123,6 @@ const PlannerView = ({ theme, selectedSlot, handleStartOver, plannerData }) => {
             className="grid grid-cols-1 md:grid-cols-3 gap-6"
           >
             <InfoCard 
-              theme={theme} 
               icon={<BarChart3 size={24}/>} 
               title="Current %" 
               value={`${calculationData.currentAtt.toFixed(1)}%`} 
@@ -114,7 +130,6 @@ const PlannerView = ({ theme, selectedSlot, handleStartOver, plannerData }) => {
               color={calculationData.currentAtt >= MIN_ATTENDANCE ? 'text-green-400' : 'text-red-400'}
             />
             <InfoCard 
-              theme={theme} 
               icon={<CalendarDays size={24}/>} 
               title="Remaining Classes" 
               value={calculationData.remainingClasses} 
@@ -122,7 +137,6 @@ const PlannerView = ({ theme, selectedSlot, handleStartOver, plannerData }) => {
               color="text-blue-400"
             />
             <InfoCard 
-              theme={theme} 
               icon={<Target size={24}/>} 
               title="Skips You Can Afford" 
               value={calculationData.remainingSkips} 
@@ -133,8 +147,8 @@ const PlannerView = ({ theme, selectedSlot, handleStartOver, plannerData }) => {
         )}
       </AnimatePresence>
             
-      {/* Section 3: Future Projection (Calendar is always visible, Gauge is conditional) */}
-      <div>
+      {/* Section 3: Future Projection */}
+      <div ref={projectionRef}> {/* Attach the new ref here */}
         <div className="flex items-center justify-between mb-4">
           <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
             Future Projection
@@ -145,18 +159,16 @@ const PlannerView = ({ theme, selectedSlot, handleStartOver, plannerData }) => {
               initial={{ opacity: 0, y: 10 }} 
               animate={{ opacity: 1, y: 0 }} 
               exit={{ opacity: 0, y: 10 }} 
-              className={`flex items-center gap-2 text-sm px-3 py-1 rounded-full ${theme === 'dark' ? 'bg-yellow-500/10 text-yellow-300' : 'bg-yellow-300 text-yellow-900'}`}
+              className={`flex items-center gap-2 text-sm px-3 py-1 rounded-full ${theme === 'dark' ? 'bg-yellow-500/10 text-yellow-300' : 'bg-yellow-100 text-yellow-800'}`}
             >
-              <Info size={14} /> Future plan reset.
+              <Info size={14} /> Plan re-calculated.
             </motion.div>
             )}
           </AnimatePresence>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          {/* Calendar is now outside the conditional block and always shows */}
           <CalendarPlanner 
-            theme={theme} 
             classDates={remainingClassDates} 
             skippedDates={skippedDates} 
             onDateToggle={handleDateToggle} 
@@ -164,7 +176,6 @@ const PlannerView = ({ theme, selectedSlot, handleStartOver, plannerData }) => {
             eventsMap={eventsMap} 
           />
 
-          {/* Gauge and its status messages are still conditional */}
           <AnimatePresence>
             {showProjection && (
               <motion.div
@@ -176,7 +187,7 @@ const PlannerView = ({ theme, selectedSlot, handleStartOver, plannerData }) => {
                 <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                   Projected Final Attendance
                 </h3>
-                <AttendanceGauge theme={theme} percentage={calculationData.projectedAtt} />
+                <AttendanceGauge percentage={calculationData.projectedAtt} />
                 {calculationData.projectedAtt >= MIN_ATTENDANCE ? (
                   <div className={`flex items-center gap-3 p-3 rounded-lg w-full ${theme === 'dark' ? 'bg-green-500/10 text-green-300' : 'bg-green-100 text-green-700'}`}>
                     <CheckCircle/> 

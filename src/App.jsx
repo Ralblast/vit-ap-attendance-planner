@@ -8,9 +8,10 @@ import CourseSelector from './Components/CourseSelector';
 import PlannerView from './Components/PlannerView';
 import AppFooter from './Components/AppFooter';
 import { useAttendancePlanner } from './hooks/useAttendancePlanner';
+import { useTheme } from './contexts/ThemeContext';
 
 export default function App() {
-  const [theme, setTheme] = useState('dark');
+  const { theme } = useTheme(); // Get theme from context
   const [selectedSlot, setSelectedSlot] = useState(null);
 
   const plannerData = useAttendancePlanner(selectedSlot);
@@ -34,14 +35,13 @@ export default function App() {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <LiveClock theme={theme} />
-          <ThemeToggle theme={theme} onToggle={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))} />
+          <LiveClock />
+          <ThemeToggle />
         </div>
       </header>
 
       <div className="flex flex-1 flex-col md:flex-row overflow-y-hidden">
         <CourseSelector 
-          theme={theme} 
           onSlotSelect={setSelectedSlot} 
           initialSlot={selectedSlot} 
         />
@@ -66,7 +66,6 @@ export default function App() {
               ) : (
                 <PlannerView
                   key={selectedSlot.slot}
-                  theme={theme}
                   selectedSlot={selectedSlot}
                   handleStartOver={() => setSelectedSlot(null)}
                   plannerData={plannerData}
@@ -74,7 +73,7 @@ export default function App() {
               )}
             </AnimatePresence>
           </div>
-          <AppFooter theme={theme} />
+          <AppFooter />
         </main>
       </div>
     </div>

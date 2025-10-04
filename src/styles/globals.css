@@ -45,9 +45,10 @@ body {
   background: #6b7280;
 }
 
-/* Smooth transitions for all elements */
-* {
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
+/*
+  The global transition rule (*) has been removed.
+  It's better practice to apply transitions using Tailwind utility classes
+  (e.g., <button class="transition-colors duration-300">)
+  directly on the elements that need them. This provides better performance
+  and more predictable behavior.
+*/

@@ -1,8 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { MIN_ATTENDANCE } from '../data/constants.js';
+import { useTheme } from '../contexts/ThemeContext.jsx';
 
-const AttendanceGauge = ({ percentage, theme }) => {
+const AttendanceGauge = ({ percentage }) => {
+  const { theme } = useTheme();
   const clampedPercentage = Math.max(0, Math.min(100, percentage));
   const isSafe = clampedPercentage >= MIN_ATTENDANCE;
   const color = isSafe ? '#4ade80' : '#f87171';

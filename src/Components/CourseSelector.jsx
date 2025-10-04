@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GraduationCap } from 'lucide-react';
 import { createSlotData } from '../data/slotData.js';
+import { useTheme } from '../contexts/ThemeContext.jsx';
 
-export default function CourseSelector({ theme, onSlotSelect, initialSlot }) {
+export default function CourseSelector({ onSlotSelect, initialSlot }) {
+  const { theme } = useTheme();
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedCredit, setSelectedCredit] = useState('');
 
@@ -37,7 +39,7 @@ export default function CourseSelector({ theme, onSlotSelect, initialSlot }) {
         </h2>
 
         {!selectedYear ? (
-          <div className={`p-4 rounded-lg ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}>
+          <div className={`p-4 rounded-lg ${theme === 'dark' ? 'bg-gray-800/40' : 'bg-white/80'}`}>
             <div className="flex items-center gap-2 mb-3">
               <GraduationCap size={20} className={theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'} />
               <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Select Your Year</h3>
@@ -53,7 +55,7 @@ export default function CourseSelector({ theme, onSlotSelect, initialSlot }) {
                   onClick={() => handleYearSelect(year.key)}
                   className={`py-3 px-4 rounded-lg text-left transition-all border-2 ${
                     theme === 'dark'
-                      ? 'bg-gray-600 hover:bg-indigo-600 text-white border-transparent'
+                      ? 'bg-gray-700/50 hover:bg-indigo-600/80 text-white border-transparent'
                       : 'bg-gray-100 hover:bg-indigo-600 hover:text-white text-gray-700 border-gray-300'
                   }`}
                 >
@@ -65,7 +67,7 @@ export default function CourseSelector({ theme, onSlotSelect, initialSlot }) {
           </div>
         ) : (
           <>
-            <div className={`p-4 rounded-lg ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}>
+            <div className={`p-4 rounded-lg ${theme === 'dark' ? 'bg-gray-800/40' : 'bg-white/80'}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <GraduationCap size={16} className={theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'} />
@@ -79,17 +81,17 @@ export default function CourseSelector({ theme, onSlotSelect, initialSlot }) {
               </div>
             </div>
 
-            <div className={`p-4 rounded-lg ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}>
+            <div className={`p-4 rounded-lg ${theme === 'dark' ? 'bg-gray-800/40' : 'bg-white/80'}`}>
               <h3 className={`font-semibold mb-3 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Select Credits</h3>
               <div className="grid gap-2">
                 {['4_credits', '3_credits', '2_credits'].map(creditType => (
                   <button
                     key={creditType}
                     onClick={() => handleCreditSelect(creditType)}
-                    className={`py-3 px-4 rounded-lg text-left transition-all ${
+                    className={`py-3 px-4 rounded-lg text-left transition-all border ${
                       selectedCredit === creditType
-                        ? 'bg-indigo-600 text-white border border-indigo-600'
-                        : theme === 'dark' ? 'bg-gray-600 hover:bg-gray-500 text-gray-300' : 'bg-gray-100 hover:bg-gray-50 text-gray-700 border border-gray-300'
+                        ? 'bg-indigo-600 text-white border-indigo-500'
+                        : theme === 'dark' ? 'bg-gray-700/50 hover:bg-gray-700/80 text-gray-300 border-transparent' : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300'
                     }`}
                   >
                     {creditType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}

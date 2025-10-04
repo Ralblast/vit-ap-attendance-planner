@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useTheme } from '../contexts/ThemeContext';
 
-const LiveClock = ({ theme }) => {
+const LiveClock = () => {
+  const { theme } = useTheme();
   const [time, setTime] = useState(new Date());
   
   useEffect(() => {
