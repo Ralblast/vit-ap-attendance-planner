@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GraduationCap } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 
-// Helper function moved here from the old slotData.js
+// Helper function
 const createCourseData = (slotString, slotDaysMapping) => {
   const parts = slotString.split('+');
   const combinedDays = new Set();
@@ -21,14 +21,25 @@ export default function CourseSelector({ onSlotSelect, initialSlot, slotsByYear 
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedCredit, setSelectedCredit] = useState('');
   const [courseList, setCourseList] = useState([]);
+  
+  // This ref helps us know if a change was internal (like changing credit)
+  const isInternalNavigation = useRef(false);
 
+  // --- THE FINAL FIX ---
   useEffect(() => {
+    // If the component thinks a change was made internally, do nothing and reset the flag.
+    if (isInternalNavigation.current) {
+      isInternalNavigation.current = false;
+      return;
+    }
+
+    // This code now ONLY runs for external changes, like the "Start Over" button.
     if (!initialSlot) {
-      setSelectedYear('');
-      setSelectedCredit('');
+      setSelectedCredit(''); // It correctly clears the credit...
+      // ...but it does NOT touch the selectedYear.
     }
   }, [initialSlot]);
-  
+
   useEffect(() => {
     if (selectedYear && selectedCredit && slotsByYear) {
       const yearData = slotsByYear[selectedYear];
@@ -49,18 +60,19 @@ export default function CourseSelector({ onSlotSelect, initialSlot, slotsByYear 
   };
   
   const handleCreditSelect = (credit) => {
+    // We tell the component that the next change is an internal one
+    isInternalNavigation.current = true; 
     setSelectedCredit(credit);
     onSlotSelect(null);
   };
 
   return (
     <aside
-      className={`w-full md:w-80 flex-shrink-0 border-r overflow-y-auto ${
+      className={`w-full md:w-80 p-4 sm:p-6 flex-shrink-0 border-r ${
         theme === 'dark' 
-        ? 'p-6 bg-black/20 border-gray-800' 
-        // --- UPDATED: Added responsive padding ---
-        : 'p-4 sm:p-6 bg-white border-slate-200' 
-      }`}
+        ? 'bg-black/20 border-gray-800' 
+        : 'bg-white border-slate-200' 
+      } overflow-y-auto`}
     >
       <div className="space-y-4">
         <h2 className={`text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>

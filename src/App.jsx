@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Aperture, BookOpen, Loader, AlertTriangle } from 'lucide-react';
+// --- 1. IMPORT: Added the 'Menu' icon for the button ---
+import { Aperture, BookOpen, Loader, AlertTriangle, Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import LiveClock from './Components/LiveClock';
@@ -33,6 +34,9 @@ export default function App() {
   const { theme } = useTheme();
   const [selectedSlot, setSelectedSlot] = useState(null);
   
+  // --- 2. NEW STATE: To control the sidebar's visibility ---
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
   const { data: semesterData, isLoading, error } = useSemesterData();
 
   const plannerData = useAttendancePlanner(
@@ -56,6 +60,16 @@ export default function App() {
         : 'bg-white/80 backdrop-blur-sm border-slate-200'
       }`}>
         <div className="flex items-center gap-3">
+          {/* --- 3. NEW BUTTON: The "three lines" button to toggle the sidebar --- */}
+          {!isLoading && !error && (
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className={`p-2 rounded-md transition-colors hidden md:block ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-slate-200'}`}
+              title="Toggle Sidebar"
+            >
+              <Menu size={20} />
+            </button>
+          )}
           <Aperture className="text-indigo-400" size={32} />
           <div>
             <h1 className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>VIT-AP</h1>
@@ -75,13 +89,28 @@ export default function App() {
           <ErrorScreen error={error} />
         ) : (
           <>
-            <CourseSelector 
-              onSlotSelect={setSelectedSlot} 
-              initialSlot={selectedSlot}
-              slotsByYear={semesterData.slotsByYear}
-            />
+            {/* --- 4. UPDATED WRAPPER: This div controls the collapse behavior --- */}
+            <div
+              className={`flex-shrink-0 transition-all duration-300 ease-in-out hidden md:block ${
+                isSidebarOpen ? 'md:w-80' : 'md:w-0'
+              } overflow-hidden`}
+            >
+              <CourseSelector
+                onSlotSelect={setSelectedSlot}
+                initialSlot={selectedSlot}
+                slotsByYear={semesterData.slotsByYear}
+              />
+            </div>
+            
+            {/* This is the original sidebar for mobile, which is unaffected */}
+            <div className="block md:hidden">
+               <CourseSelector
+                onSlotSelect={setSelectedSlot}
+                initialSlot={selectedSlot}
+                slotsByYear={semesterData.slotsByYear}
+              />
+            </div>
 
-            {/* --- UPDATED: Added more responsive padding for mobile --- */}
             <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto flex flex-col">
               <div className="flex-grow">
                 <AnimatePresence mode="wait">
