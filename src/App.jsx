@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Aperture, BookOpen } from 'lucide-react';
+import { Aperture, BookOpen, Loader, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import LiveClock from './Components/LiveClock';
@@ -9,12 +9,39 @@ import PlannerView from './Components/PlannerView';
 import AppFooter from './Components/AppFooter';
 import { useAttendancePlanner } from './hooks/useAttendancePlanner';
 import { useTheme } from './contexts/ThemeContext';
+import { useSemesterData } from './hooks/useSemesterData';
+
+// A simple component to show while data is loading
+const LoadingScreen = () => (
+  <div className="flex-1 flex flex-col items-center justify-center gap-4">
+    <Loader className="animate-spin text-indigo-400" size={48} />
+    <p>Loading Academic Calendar...</p>
+  </div>
+);
+
+// A simple component to show if data fails to load
+const ErrorScreen = ({ error }) => (
+  <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center p-4">
+    <AlertTriangle className="text-red-400" size={48} />
+    <h2 className="text-xl font-bold">Failed to Load Data</h2>
+    <p className="max-w-md text-sm text-gray-400">The application could not load the required semester data. Please check your network connection and try refreshing the page.</p>
+  </div>
+);
+
 
 export default function App() {
-  const { theme } = useTheme(); // Get theme from context
+  const { theme } = useTheme();
   const [selectedSlot, setSelectedSlot] = useState(null);
+  
+  // Fetch semester data using our new hook
+  const { data: semesterData, isLoading, error } = useSemesterData();
 
-  const plannerData = useAttendancePlanner(selectedSlot);
+  // The planner hook now receives the calendar and last day as arguments
+  const plannerData = useAttendancePlanner(
+    selectedSlot,
+    semesterData?.academicCalendar,
+    semesterData?.lastInstructionalDay
+  );
 
   const mainBg =
     theme === 'dark'
@@ -41,40 +68,50 @@ export default function App() {
       </header>
 
       <div className="flex flex-1 flex-col md:flex-row overflow-y-hidden">
-        <CourseSelector 
-          onSlotSelect={setSelectedSlot} 
-          initialSlot={selectedSlot} 
-        />
+        {isLoading ? (
+          <LoadingScreen />
+        ) : error ? (
+          <ErrorScreen error={error} />
+        ) : (
+          <>
+            <CourseSelector 
+              onSlotSelect={setSelectedSlot} 
+              initialSlot={selectedSlot}
+              slotsByYear={semesterData.slotsByYear}
+            />
 
-        <main className="flex-1 p-6 md:p-8 overflow-y-auto flex flex-col">
-          <div className="flex-grow">
-            <AnimatePresence mode="wait">
-              {!selectedSlot ? (
-                <motion.div
-                  key="welcome"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}
-                  className="flex h-full items-center justify-center text-center"
-                >
-                  <div>
-                    <BookOpen size={48} className={`mx-auto ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'} mb-4`} />
-                    <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Welcome!</h2>
-                    <p className={`mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Select your course details from the sidebar to begin.</p>
-                  </div>
-                </motion.div>
-              ) : (
-                <PlannerView
-                  key={selectedSlot.slot}
-                  selectedSlot={selectedSlot}
-                  handleStartOver={() => setSelectedSlot(null)}
-                  plannerData={plannerData}
-                />
-              )}
-            </AnimatePresence>
-          </div>
-          <AppFooter />
-        </main>
+            <main className="flex-1 p-6 md:p-8 overflow-y-auto flex flex-col">
+              <div className="flex-grow">
+                <AnimatePresence mode="wait">
+                  {!selectedSlot ? (
+                    <motion.div
+                      key="welcome"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }}
+                      className="flex h-full items-center justify-center text-center"
+                    >
+                      <div>
+                        <BookOpen size={48} className={`mx-auto ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'} mb-4`} />
+                        <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Welcome!</h2>
+                        <p className={`mt-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Select your course details from the sidebar to begin.</p>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <PlannerView
+                      key={selectedSlot.slot}
+                      selectedSlot={selectedSlot}
+                      handleStartOver={() => setSelectedSlot(null)}
+                      plannerData={plannerData}
+                      lastInstructionalDay={semesterData.lastInstructionalDay}
+                    />
+                  )}
+                </AnimatePresence>
+              </div>
+              <AppFooter />
+            </main>
+          </>
+        )}
       </div>
     </div>
   );

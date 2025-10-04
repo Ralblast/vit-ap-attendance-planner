@@ -4,10 +4,10 @@ import { RefreshCcw, BarChart3, CalendarDays, Target, CheckCircle, AlertTriangle
 import InfoCard from './InfoCard.jsx';
 import CalendarPlanner from './CalendarPlanner.jsx';
 import AttendanceGauge from './AttendanceGauge.jsx';
-import { MIN_ATTENDANCE, LAST_INSTRUCTIONAL_DAY } from '../data/constants.js';
+import { MIN_ATTENDANCE } from '../data/constants.js';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 
-const PlannerView = ({ selectedSlot, handleStartOver, plannerData }) => {
+const PlannerView = ({ selectedSlot, handleStartOver, plannerData, lastInstructionalDay }) => {
   const { theme } = useTheme();
   const {
     classesTaken, setClassesTaken,
@@ -21,27 +21,22 @@ const PlannerView = ({ selectedSlot, handleStartOver, plannerData }) => {
     handleDateToggle,
   } = plannerData;
 
-  // --- REFS FOR SCROLLING ---
   const statusRef = useRef(null);
-  const projectionRef = useRef(null); // New ref for the projection section
+  const projectionRef = useRef(null);
 
-  // Effect 1: Scrolls to the input section when the view first loads
   useEffect(() => {
     if (statusRef.current) {
       statusRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, []);
 
-  // --- NEW ---
-  // Effect 2: Scrolls to the projection section ONLY when it first appears
   useEffect(() => {
     if (showProjection && projectionRef.current) {
-      // A small delay ensures the section is fully rendered before scrolling
       setTimeout(() => {
         projectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 100); 
     }
-  }, [showProjection]); // This runs whenever `showProjection` changes
+  }, [showProjection]);
 
 
   return (
@@ -52,7 +47,6 @@ const PlannerView = ({ selectedSlot, handleStartOver, plannerData }) => {
       exit={{ opacity: 0, y: -20, transition: { duration: 0.2 } }} 
       className="space-y-8"
     >
-      {/* Section 1: Current Status & Inputs */}
       <div ref={statusRef}>
         <div className="flex justify-between items-start">
           <div>
@@ -113,7 +107,6 @@ const PlannerView = ({ selectedSlot, handleStartOver, plannerData }) => {
         )}
       </div>
 
-      {/* Section 2: Info Cards */}
       <AnimatePresence>
         {showProjection && (
           <motion.div
@@ -133,7 +126,7 @@ const PlannerView = ({ selectedSlot, handleStartOver, plannerData }) => {
               icon={<CalendarDays size={24}/>} 
               title="Remaining Classes" 
               value={calculationData.remainingClasses} 
-              subtext={`Until ${LAST_INSTRUCTIONAL_DAY.toLocaleDateString('en-GB')}`} 
+              subtext={`Until ${lastInstructionalDay.toLocaleDateString('en-GB')}`} 
               color="text-blue-400"
             />
             <InfoCard 
@@ -147,8 +140,7 @@ const PlannerView = ({ selectedSlot, handleStartOver, plannerData }) => {
         )}
       </AnimatePresence>
             
-      {/* Section 3: Future Projection */}
-      <div ref={projectionRef}> {/* Attach the new ref here */}
+      <div ref={projectionRef}>
         <div className="flex items-center justify-between mb-4">
           <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
             Future Projection

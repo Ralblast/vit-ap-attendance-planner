@@ -1,9 +1,8 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { academicCalendar } from '../data/academicCalendar.js';
-import { LAST_INSTRUCTIONAL_DAY, MIN_ATTENDANCE } from '../data/constants.js';
+import { MIN_ATTENDANCE } from '../data/constants.js'; // Note: LAST_INSTRUCTIONAL_DAY is removed
 import { formatDate } from '../utils/dateUtils.js';
 
-export function useAttendancePlanner(selectedSlot) {
+export function useAttendancePlanner(selectedSlot, academicCalendar, lastInstructionalDay) {
   const [classesTaken, setClassesTaken] = useState('');
   const [classesAttended, setClassesAttended] = useState('');
   const [skippedDates, setSkippedDates] = useState([]);
@@ -11,7 +10,6 @@ export function useAttendancePlanner(selectedSlot) {
   
   const prevSlotRef = useRef(null);
 
-  // Effect to reset everything when a new course slot is chosen
   useEffect(() => {
     if (selectedSlot) {
       if (prevSlotRef.current !== selectedSlot.slot) {
@@ -23,9 +21,7 @@ export function useAttendancePlanner(selectedSlot) {
     }
   }, [selectedSlot]);
 
-  // Effect to show a notification when past attendance is updated
   useEffect(() => {
-    // This effect now ONLY shows a notification. It no longer resets the skippedDates array.
     if (classesTaken && parseInt(classesTaken) > 0) {
       setShowResetNotification(true);
       const timer = setTimeout(() => setShowResetNotification(false), 4000);
@@ -35,7 +31,8 @@ export function useAttendancePlanner(selectedSlot) {
 
   const eventsMap = useMemo(() => {
     const map = new Map();
-    academicCalendar.forEach(event => {
+    // Use academicCalendar from arguments, handle case where it might not be loaded yet
+    (academicCalendar || []).forEach(event => {
       if (event.date) {
         map.set(formatDate(new Date(event.date + 'T00:00:00')), { type: event.type, name: event.name });
       } else if (event.startDate && event.endDate) {
@@ -48,7 +45,7 @@ export function useAttendancePlanner(selectedSlot) {
       }
     });
     return map;
-  }, []);
+  }, [academicCalendar]);
 
   const holidayDateSet = useMemo(() => {
     const dates = new Set();
@@ -61,10 +58,10 @@ export function useAttendancePlanner(selectedSlot) {
   }, [eventsMap]);
 
   const remainingClassDates = useMemo(() => {
-    if (!selectedSlot) return [];
+    if (!selectedSlot || !lastInstructionalDay) return [];
     let dates = [];
     let currentDate = new Date();
-    while (currentDate <= LAST_INSTRUCTIONAL_DAY) {
+    while (currentDate <= lastInstructionalDay) {
       if (
         selectedSlot.days.includes(currentDate.getDay()) &&
         !holidayDateSet.has(formatDate(currentDate))
@@ -74,7 +71,7 @@ export function useAttendancePlanner(selectedSlot) {
       currentDate.setDate(currentDate.getDate() + 1);
     }
     return dates;
-  }, [selectedSlot, holidayDateSet]);
+  }, [selectedSlot, holidayDateSet, lastInstructionalDay]);
 
   const calculationData = useMemo(() => {
     const taken = parseInt(classesTaken) || 0;

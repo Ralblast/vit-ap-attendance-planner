@@ -1,13 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GraduationCap } from 'lucide-react';
-import { createSlotData } from '../data/slotData.js';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 
-export default function CourseSelector({ onSlotSelect, initialSlot }) {
+// Helper function moved here from the old slotData.js
+const createCourseData = (slotString, slotDaysMapping) => {
+  const parts = slotString.split('+');
+  const combinedDays = new Set();
+  parts.forEach(part => {
+    const primaryPart = part.split('/')[0];
+    if (slotDaysMapping[primaryPart]) {
+      slotDaysMapping[primaryPart].forEach(day => combinedDays.add(day));
+    }
+  });
+  return { slot: slotString, days: Array.from(combinedDays).sort() };
+};
+
+export default function CourseSelector({ onSlotSelect, initialSlot, slotsByYear }) {
   const { theme } = useTheme();
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedCredit, setSelectedCredit] = useState('');
+  const [courseList, setCourseList] = useState([]);
 
   useEffect(() => {
     if (!initialSlot) {
@@ -15,6 +28,20 @@ export default function CourseSelector({ onSlotSelect, initialSlot }) {
       setSelectedCredit('');
     }
   }, [initialSlot]);
+  
+  // When year or credit changes, calculate the list of course slots
+  useEffect(() => {
+    if (selectedYear && selectedCredit && slotsByYear) {
+      const yearData = slotsByYear[selectedYear];
+      if (yearData) {
+        const slots = yearData.slots[selectedCredit] || [];
+        const slotDaysMapping = yearData.slotDays;
+        setCourseList(slots.map(slot => createCourseData(slot, slotDaysMapping)));
+      }
+    } else {
+      setCourseList([]);
+    }
+  }, [selectedYear, selectedCredit, slotsByYear]);
 
   const handleYearSelect = (year) => {
     setSelectedYear(year);
@@ -101,11 +128,11 @@ export default function CourseSelector({ onSlotSelect, initialSlot }) {
             </div>
 
             <AnimatePresence>
-              {selectedYear && selectedCredit && (
+              {courseList.length > 0 && (
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
                   <label className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Slot Combination</label>
                   <div className="grid grid-cols-2 gap-2 mt-2 max-h-64 overflow-y-auto pr-2">
-                    {createSlotData(selectedYear, selectedCredit).map((course, idx) => (
+                    {courseList.map((course, idx) => (
                       <button
                         key={idx}
                         onClick={() => onSlotSelect(course)}
