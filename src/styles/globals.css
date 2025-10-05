@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Reset and baseline styles */
+
 * {
   margin: 0;
   padding: 0;
@@ -19,7 +19,7 @@ body {
   height: 100%;
 }
 
-/* Essential backdrop-blur support for the glass morphism effect */
+
 @supports (backdrop-filter: blur(10px)) {
   .backdrop-blur-sm {
     backdrop-filter: blur(4px);
@@ -27,7 +27,6 @@ body {
   }
 }
 
-/* Custom scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -45,10 +44,3 @@ body {
   background: #6b7280;
 }
 
-/*
-  The global transition rule (*) has been removed.
-  It's better practice to apply transitions using Tailwind utility classes
-  (e.g., <button class="transition-colors duration-300">)
-  directly on the elements that need them. This provides better performance
-  and more predictable behavior.
-*/

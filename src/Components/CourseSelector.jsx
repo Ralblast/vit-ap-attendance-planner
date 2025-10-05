@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { GraduationCap } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 
-// Helper function
+
 const createCourseData = (slotString, slotDaysMapping) => {
   const parts = slotString.split('+');
   const combinedDays = new Set();
@@ -22,21 +22,20 @@ export default function CourseSelector({ onSlotSelect, initialSlot, slotsByYear 
   const [selectedCredit, setSelectedCredit] = useState('');
   const [courseList, setCourseList] = useState([]);
   
-  // This ref helps us know if a change was internal (like changing credit)
+ 
   const isInternalNavigation = useRef(false);
 
-  // --- THE FINAL FIX ---
   useEffect(() => {
-    // If the component thinks a change was made internally, do nothing and reset the flag.
+  
     if (isInternalNavigation.current) {
       isInternalNavigation.current = false;
       return;
     }
 
-    // This code now ONLY runs for external changes, like the "Start Over" button.
+ 
     if (!initialSlot) {
-      setSelectedCredit(''); // It correctly clears the credit...
-      // ...but it does NOT touch the selectedYear.
+      setSelectedCredit(''); 
+
     }
   }, [initialSlot]);
 
@@ -60,7 +59,7 @@ export default function CourseSelector({ onSlotSelect, initialSlot, slotsByYear 
   };
   
   const handleCreditSelect = (credit) => {
-    // We tell the component that the next change is an internal one
+  
     isInternalNavigation.current = true; 
     setSelectedCredit(credit);
     onSlotSelect(null);

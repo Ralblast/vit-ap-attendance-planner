@@ -57,7 +57,7 @@ const PlannerView = ({ selectedSlot, handleStartOver, plannerData, lastInstructi
       >
         <div className="flex justify-between items-start">
           <div>
-            {/* --- UPDATED: Responsive font size --- */}
+       
             <h2 className={`text-xl sm:text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
               Current Status for <span className="text-indigo-400">{selectedSlot.slot}</span>
             </h2>

@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { MIN_ATTENDANCE } from '../data/constants.js'; // Note: LAST_INSTRUCTIONAL_DAY is removed
+import { MIN_ATTENDANCE } from '../data/constants.js'; 
 import { formatDate } from '../utils/dateUtils.js';
 
 export function useAttendancePlanner(selectedSlot, academicCalendar, lastInstructionalDay) {
@@ -31,7 +31,7 @@ export function useAttendancePlanner(selectedSlot, academicCalendar, lastInstruc
 
   const eventsMap = useMemo(() => {
     const map = new Map();
-    // Use academicCalendar from arguments, handle case where it might not be loaded yet
+   
     (academicCalendar || []).forEach(event => {
       if (event.date) {
         map.set(formatDate(new Date(event.date + 'T00:00:00')), { type: event.type, name: event.name });

@@ -19,7 +19,6 @@ const InfoCard = ({ icon, title, value, subtext, color = 'text-gray-200' }) => {
         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
           {title}
         </p>
-        {/* --- UPDATED: Responsive font size --- */}
         <p className={`text-xl sm:text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
           {value}
         </p>

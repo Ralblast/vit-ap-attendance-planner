@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-// --- 1. IMPORT: Added the 'Menu' icon for the button ---
 import { Aperture, BookOpen, Loader, AlertTriangle, Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -12,7 +11,6 @@ import { useAttendancePlanner } from './hooks/useAttendancePlanner';
 import { useTheme } from './contexts/ThemeContext';
 import { useSemesterData } from './hooks/useSemesterData';
 
-// A simple component to show while data is loading
 const LoadingScreen = () => (
   <div className="flex-1 flex flex-col items-center justify-center gap-4">
     <Loader className="animate-spin text-indigo-400" size={48} />
@@ -20,7 +18,6 @@ const LoadingScreen = () => (
   </div>
 );
 
-// A simple component to show if data fails to load
 const ErrorScreen = ({ error }) => (
   <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center p-4">
     <AlertTriangle className="text-red-400" size={48} />
@@ -34,7 +31,7 @@ export default function App() {
   const { theme } = useTheme();
   const [selectedSlot, setSelectedSlot] = useState(null);
   
-  // --- 2. NEW STATE: To control the sidebar's visibility ---
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const { data: semesterData, isLoading, error } = useSemesterData();
@@ -60,7 +57,7 @@ export default function App() {
         : 'bg-white/80 backdrop-blur-sm border-slate-200'
       }`}>
         <div className="flex items-center gap-3">
-          {/* --- 3. NEW BUTTON: The "three lines" button to toggle the sidebar --- */}
+        
           {!isLoading && !error && (
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -89,7 +86,7 @@ export default function App() {
           <ErrorScreen error={error} />
         ) : (
           <>
-            {/* --- 4. UPDATED WRAPPER: This div controls the collapse behavior --- */}
+          
             <div
               className={`flex-shrink-0 transition-all duration-300 ease-in-out hidden md:block ${
                 isSidebarOpen ? 'md:w-80' : 'md:w-0'
@@ -102,7 +99,7 @@ export default function App() {
               />
             </div>
             
-            {/* This is the original sidebar for mobile, which is unaffected */}
+         
             <div className="block md:hidden">
                <CourseSelector
                 onSlotSelect={setSelectedSlot}
