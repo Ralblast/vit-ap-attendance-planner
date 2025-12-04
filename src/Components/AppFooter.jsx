@@ -21,7 +21,7 @@ const AppFooter = () => {
               </span>
               <br />
               <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                Projections based on Fall 2025 calendar. Monitor email for schedule changes and verify with official VIT-AP sources.
+                Projections based on  Winter 2025-2026 calendar. Monitor email for schedule changes and verify with official VIT-AP sources.
               </span>
               <br />
               <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>

@@ -1,19 +1,25 @@
 {
-  "lastInstructionalDay": "2025-11-19T00:00:00",
-  "academicCalendar": [
-    { "date": "2025-07-22", "type": "academic", "name": "Semester Starts" },
-    { "date": "2025-08-15", "type": "holiday", "name": "Independence Day" },
-    { "startDate": "2025-08-18", "endDate": "2025-08-25", "type": "exam", "name": "CAT-1 Exams" },
-    { "date": "2025-08-27", "type": "holiday", "name": "Vinayaka Chaturthi" },
-    { "date": "2025-09-05", "type": "holiday", "name": "Milad-un-Nabi" },
-    { "date": "2025-10-02", "type": "holiday", "name": "Gandhi Jayanti / Dussehra" },
-    { "startDate": "2025-10-06", "endDate": "2025-10-13", "type": "exam", "name": "CAT-2 Exams" },
-    { "startDate": "2025-10-17", "endDate": "2025-10-21", "type": "holiday", "name": "Deepavali Break" },
-
-    { "date": "2025-11-15", "type": "other", "name": "Engineering Clinics Expo" },
-    { "date": "2025-11-19", "type": "academic", "name": "Last Day of Instruction" },
-    { "startDate": "2025-11-21", "endDate": "2025-12-08", "type": "exam", "name": "Theory FAT Exams" }
-  ],
+  "lastInstructionalDay": "2026-05-02T00:00:00",
+    "academicCalendar": [
+      { "date": "2025-12-09", "type": "academic", "name": "Commencement of WIN 2025-26 Semester" },
+      { "startDate": "2025-12-21", "endDate": "2026-01-05", "type": "holiday", "name": "Winter Vacation" },
+      { "date": "2026-01-13", "type": "holiday", "name": "Bhogi" },
+      { "date": "2026-01-14", "type": "holiday", "name": "Makara Sankranti / Pongal" },
+      { "date": "2026-01-26", "type": "holiday", "name": "Republic Day" },
+      { "startDate": "2026-02-02", "endDate": "2026-02-10", "type": "exam", "name": "CAT-1 Exams" },
+      { "date": "2026-03-04", "type": "holiday", "name": "Holi" },
+      { "date": "2026-03-19", "type": "holiday", "name": "Eid-ul-Fitr / Ramzan" },
+      { "date": "2026-03-20", "type": "holiday", "name": "Ugadi" },
+      { "startDate": "2026-03-23", "endDate": "2026-03-30", "type": "exam", "name": "CAT-2 Exams" },
+      { "date": "2026-04-03", "type": "holiday", "name": "Good Friday" },
+      { "date": "2026-04-14", "type": "holiday", "name": "Dr. B R Ambedkar Jayanti" },
+      { "startDate": "2026-04-24", "endDate": "2026-04-30", "type": "exam", "name": "FAT for Lab component / Courses" },
+      { "date": "2026-05-01", "type": "holiday", "name": "May Day" },
+      { "date": "2026-05-02", "type": "other", "name": "Engineering Expo" },
+      { "date": "2026-05-02", "type": "academic", "name": "Last Instructional day" },
+      { "startDate": "2026-05-04", "endDate": "2026-05-23", "type": "exam", "name": "FAT for Theory component / Courses" },
+      { "startDate": "2026-05-24", "endDate": "2026-07-20", "type": "holiday", "name": "Summer Vacation" }
+    ],
   "slotsByYear": {
     "2nd_year": {
       "slotDays": { "A1": [2, 6], "A2": [2, 4], "B1": [2, 3], "B2": [2, 3], "C1": [4, 6], "C2": [4, 5], "D1": [2, 3], "D2": [3, 6], "E1": [3, 6], "E2": [3, 6], "F1": [3, 5], "F2": [2, 3, 5], "G1": [2, 6], "G2": [2, 3], "SC1": [3], "SC2": [3], "SD1": [6], "SD2": [5], "SE1": [4], "SE2": [6], "TA1": [5], "TA2": [5], "TAA1": [4], "TAA2": [6], "TB1": [5], "TB2": [5], "TBB1": [4], "TBB2": [6], "TC1": [2], "TC2": [2], "TCC1": [5], "TCC2": [3], "TD1": [4], "TD2": [4], "TDD1": [6], "TDD2": [2], "TE1": [5], "TE2": [4], "TEE1": [4], "TEE2": [5], "TF1": [6], "TF2": [3], "TFF1": [2], "TFF2": [6], "TG1": [4], "TG2": [4], "TGG1": [3], "TGG2": [4] },
