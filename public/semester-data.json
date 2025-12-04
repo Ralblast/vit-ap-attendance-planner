@@ -13,9 +13,9 @@
       { "startDate": "2026-03-23", "endDate": "2026-03-30", "type": "exam", "name": "CAT-2 Exams" },
       { "date": "2026-04-03", "type": "holiday", "name": "Good Friday" },
       { "date": "2026-04-14", "type": "holiday", "name": "Dr. B R Ambedkar Jayanti" },
-      { "startDate": "2026-04-24", "endDate": "2026-04-30", "type": "exam", "name": "FAT for Lab component / Courses" },
+      { "startDate": "2026-04-24", "endDate": "2026-04-30", "type": "other", "name": "FAT for Lab component / Courses" },
       { "date": "2026-05-01", "type": "holiday", "name": "May Day" },
-      { "date": "2026-05-02", "type": "other", "name": "Engineering Expo" },
+      { "date": "2026-05-02", "type": "holiday", "name": "Engineering Expo" },
       { "date": "2026-05-02", "type": "academic", "name": "Last Instructional day" },
       { "startDate": "2026-05-04", "endDate": "2026-05-23", "type": "exam", "name": "FAT for Theory component / Courses" },
       { "startDate": "2026-05-24", "endDate": "2026-07-20", "type": "holiday", "name": "Summer Vacation" }
