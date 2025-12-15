@@ -11,6 +11,8 @@ import { useAttendancePlanner } from './hooks/useAttendancePlanner';
 import { useTheme } from './contexts/ThemeContext';
 import { useSemesterData } from './hooks/useSemesterData';
 
+import FeedbackBanner from './Components/FeedbackBanner';
+
 const LoadingScreen = () => (
   <div className="flex-1 flex flex-col items-center justify-center gap-4">
     <Loader className="animate-spin text-indigo-400" size={48} />
@@ -51,6 +53,9 @@ export default function App() {
       }`}
       style={theme === 'dark' ? { background: darkBg } : {}}
     >
+
+      <FeedbackBanner />
+      
       <header className={`flex justify-between items-center p-4 border-b ${
         theme === 'dark' 
         ? 'bg-gray-900/50 border-gray-800' 
