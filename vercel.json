@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/attendance-review",
+      "schedule": "0 4 * * 1"
+    }
+  ]
+}
