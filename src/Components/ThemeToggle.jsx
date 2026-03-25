@@ -1,30 +1,26 @@
 import React from 'react';
-import { motion } from 'framer-motion';
-import { Sun, Moon } from 'lucide-react';
-import { useTheme } from '../contexts/ThemeContext';
+import { motion as Motion } from 'framer-motion';
+import { Moon, Sun } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext.jsx';
 
 const ThemeToggle = () => {
   const { theme, toggleTheme } = useTheme();
-  
+
   return (
-    <button 
-      onClick={toggleTheme} 
-      className={`relative w-14 h-7 flex items-center rounded-full p-1 transition-colors duration-300 ${
-        theme === 'dark' ? 'bg-indigo-600' : 'bg-yellow-400'
-      }`}
+    <button
+      type="button"
+      onClick={toggleTheme}
+      className="relative flex h-8 w-[58px] items-center rounded-full border border-border-default bg-subtle p-1 transition-colors hover:border-border-strong"
+      aria-label="Toggle theme"
     >
-      <motion.div 
-        layout 
-        transition={{ type: 'spring', stiffness: 700, damping: 30 }} 
-        className="absolute w-6 h-6 bg-white rounded-full shadow-md" 
-        style={{ 
-          left: theme === 'dark' ? 2 : 'auto', 
-          right: theme === 'light' ? 2 : 'auto' 
-        }}
+      <Motion.div
+        animate={{ x: theme === 'dark' ? 0 : 26 }}
+        transition={{ type: 'spring', stiffness: 520, damping: 34 }}
+        className="absolute h-6 w-6 rounded-full border border-border-default bg-surface"
       />
-      <div className="flex w-full justify-between">
-        <Moon size={14} className="text-white ml-0.5" />
-        <Sun size={14} className="text-gray-800 mr-0.5" />
+      <div className="relative z-10 flex w-full items-center justify-between px-0.5">
+        <Moon size={14} className={theme === 'dark' ? 'text-text-primary' : 'text-text-muted'} />
+        <Sun size={14} className={theme === 'light' ? 'text-text-primary' : 'text-text-muted'} />
       </div>
     </button>
   );

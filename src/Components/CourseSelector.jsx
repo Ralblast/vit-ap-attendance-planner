@@ -1,41 +1,57 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion as Motion } from 'framer-motion';
 import { GraduationCap } from 'lucide-react';
-import { useTheme } from '../contexts/ThemeContext.jsx';
 
+const YEAR_OPTIONS = [
+  { key: '4th_year', label: '4th Year', batch: '2022 batch' },
+  { key: '3rd_year', label: '3rd Year', batch: '2023 batch' },
+  { key: '2nd_year', label: '2nd Year', batch: '2024 batch' },
+];
+
+const CREDIT_OPTIONS = ['4_credits', '3_credits', '2_credits'];
+
+const formatOptionLabel = value => value.replace('_', ' ').replace(/\b\w/g, letter => letter.toUpperCase());
 
 const createCourseData = (slotString, slotDaysMapping) => {
   const parts = slotString.split('+');
   const combinedDays = new Set();
+
   parts.forEach(part => {
     const primaryPart = part.split('/')[0];
     if (slotDaysMapping[primaryPart]) {
       slotDaysMapping[primaryPart].forEach(day => combinedDays.add(day));
     }
   });
+
   return { slot: slotString, days: Array.from(combinedDays).sort() };
 };
 
-export default function CourseSelector({ onSlotSelect, initialSlot, slotsByYear }) {
-  const { theme } = useTheme();
+export default function CourseSelector({
+  onSlotSelect,
+  initialSlot,
+  slotsByYear,
+  layout = 'sidebar',
+}) {
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedCredit, setSelectedCredit] = useState('');
   const [courseList, setCourseList] = useState([]);
-  
- 
   const isInternalNavigation = useRef(false);
 
   useEffect(() => {
-  
+    if (initialSlot?.selectedYear) {
+      setSelectedYear(initialSlot.selectedYear);
+      setSelectedCredit(initialSlot.selectedCredit || '');
+      return;
+    }
+
     if (isInternalNavigation.current) {
       isInternalNavigation.current = false;
       return;
     }
 
- 
     if (!initialSlot) {
-      setSelectedCredit(''); 
-
+      setSelectedYear('');
+      setSelectedCredit('');
     }
   }, [initialSlot]);
 
@@ -52,118 +68,157 @@ export default function CourseSelector({ onSlotSelect, initialSlot, slotsByYear 
     }
   }, [selectedYear, selectedCredit, slotsByYear]);
 
-  const handleYearSelect = (year) => {
+  const handleYearSelect = year => {
     setSelectedYear(year);
     setSelectedCredit('');
     onSlotSelect(null);
   };
-  
-  const handleCreditSelect = (credit) => {
-  
-    isInternalNavigation.current = true; 
+
+  const handleCreditSelect = credit => {
+    isInternalNavigation.current = true;
     setSelectedCredit(credit);
     onSlotSelect(null);
   };
 
-  return (
-    <aside
-      className={`w-full md:w-80 p-4 sm:p-6 flex-shrink-0 border-r ${
-        theme === 'dark' 
-        ? 'bg-black/20 border-gray-800' 
-        : 'bg-white border-slate-200' 
-      } overflow-y-auto`}
-    >
-      <div className="space-y-4">
-        <h2 className={`text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-          Course Selection
-        </h2>
+  const panelClassName =
+    layout === 'modal'
+      ? 'w-full space-y-6 p-6'
+      : 'w-full md:w-[280px] md:flex-shrink-0 md:border-r md:border-border-faint md:pr-6';
 
-        {!selectedYear ? (
-          <div className={`p-4 rounded-lg ${theme === 'dark' ? 'bg-gray-800/40' : 'bg-slate-100'}`}>
-            <div className="flex items-center gap-2 mb-3">
-              <GraduationCap size={20} className={theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'} />
-              <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Select Your Year</h3>
-            </div>
+  const selectedYearMeta = YEAR_OPTIONS.find(year => year.key === selectedYear);
+
+  return (
+    <aside className={panelClassName}>
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <p className="eyebrow-label">Course Setup</p>
+          <div className="flex items-center gap-2 text-text-primary">
+            <GraduationCap size={16} className="text-accent" />
+            <h2 className="text-base font-semibold">Choose your slot details</h2>
+          </div>
+          <p className="text-sm text-text-muted">
+            Select year, credits, and slot combination to open the planner.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="eyebrow-label">Year</p>
+            {selectedYear ? (
+              <button
+                type="button"
+                onClick={() => handleYearSelect('')}
+                className="text-xs text-text-muted transition-colors hover:text-text-primary"
+              >
+                Change
+              </button>
+            ) : null}
+          </div>
+
+          {!selectedYear ? (
             <div className="grid gap-2">
-              {[
-                { key: '4th_year', label: '4th Year', batch: '2022' },
-                { key: '3rd_year', label: '3rd Year', batch: '2023' },
-                { key: '2nd_year', label: '2nd Year', batch: '2024' }
-              ].map(year => (
+              {YEAR_OPTIONS.map(year => (
                 <button
                   key={year.key}
+                  type="button"
                   onClick={() => handleYearSelect(year.key)}
-                  className={`py-3 px-4 rounded-lg text-left transition-all border ${
-                    theme === 'dark'
-                      ? 'bg-gray-700/50 hover:bg-indigo-600/80 text-white border-transparent'
-                      : 'bg-white hover:bg-indigo-50 hover:border-indigo-300 text-gray-700 border-slate-200'
-                  }`}
+                  className="rounded-lg border border-border-default bg-surface px-4 py-3 text-left text-text-secondary transition-colors hover:border-border-strong hover:text-text-primary"
                 >
                   <div className="font-medium">{year.label}</div>
-                  <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{year.batch} Batch</div>
+                  <div className="text-xs text-text-muted">{year.batch}</div>
                 </button>
               ))}
             </div>
-          </div>
-        ) : (
-          <>
-            <div className={`p-4 rounded-lg ${theme === 'dark' ? 'bg-gray-800/40' : 'bg-slate-100'}`}>
+          ) : (
+            <div className="rounded-lg border border-border-default bg-surface px-4 py-3">
+              <div className="font-medium text-text-primary">{selectedYearMeta?.label}</div>
+              <div className="text-xs text-text-muted">{selectedYearMeta?.batch}</div>
+            </div>
+          )}
+        </div>
+
+        <AnimatePresence initial={false}>
+          {selectedYear ? (
+            <Motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              className="space-y-3"
+            >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <GraduationCap size={16} className={theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'} />
-                  <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
-                    {selectedYear.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} • {selectedYear === '4th_year' ? '2022' : selectedYear === '3rd_year' ? '2023' : '2024'} Batch
-                  </span>
-                </div>
-                <button onClick={() => handleYearSelect('')} className={`text-xs px-2 py-1 rounded ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'}`}>
-                  Change
-                </button>
-              </div>
-            </div>
-
-            <div className={`p-4 rounded-lg ${theme === 'dark' ? 'bg-gray-800/40' : 'bg-slate-100'}`}>
-              <h3 className={`font-semibold mb-3 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Select Credits</h3>
-              <div className="grid gap-2">
-                {['4_credits', '3_credits', '2_credits'].map(creditType => (
+                <p className="eyebrow-label">Credits</p>
+                {selectedCredit ? (
                   <button
-                    key={creditType}
-                    onClick={() => handleCreditSelect(creditType)}
-                    className={`py-3 px-4 rounded-lg text-left transition-all border ${
-                      selectedCredit === creditType
-                        ? 'bg-indigo-600 text-white border-indigo-500'
-                        : theme === 'dark' ? 'bg-gray-700/50 hover:bg-gray-700/80 text-gray-300 border-transparent' : 'bg-white hover:bg-indigo-50 text-gray-700 border-slate-200'
-                    }`}
+                    type="button"
+                    onClick={() => handleCreditSelect('')}
+                    className="text-xs text-text-muted transition-colors hover:text-text-primary"
                   >
-                    {creditType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    Change
                   </button>
-                ))}
+                ) : null}
               </div>
-            </div>
 
-            <AnimatePresence>
-              {courseList.length > 0 && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-                  <label className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Slot Combination</label>
-                  <div className="grid grid-cols-2 gap-2 mt-2 max-h-64 overflow-y-auto pr-2">
-                    {courseList.map((course, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => onSlotSelect(course)}
-                        className={`px-2 py-3 text-center rounded-lg transition-all border-2 text-xs ${
-                          initialSlot?.slot === course.slot
-                            ? 'bg-indigo-100 border-indigo-500 text-indigo-700 font-semibold'
-                            : theme === 'dark' ? 'bg-gray-800 border-transparent text-gray-400 hover:border-gray-600' : 'bg-white border-slate-200 text-gray-900 hover:border-slate-400'
-                        }`}
-                      >
-                        <span className="font-semibold">{course.slot}</span>
-                      </button>
-                    ))}
+              {!selectedCredit ? (
+                <div className="grid gap-2">
+                  {CREDIT_OPTIONS.map(creditType => (
+                    <button
+                      key={creditType}
+                      type="button"
+                      onClick={() => handleCreditSelect(creditType)}
+                      className="rounded-lg border border-border-default bg-surface px-4 py-3 text-left text-text-secondary transition-colors hover:border-border-strong hover:text-text-primary"
+                    >
+                      {formatOptionLabel(creditType)}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-border-default bg-surface px-4 py-3">
+                  <div className="font-medium text-text-primary">
+                    {formatOptionLabel(selectedCredit)}
                   </div>
-                </motion.div>
+                  <div className="text-xs text-text-muted">Selected credit category</div>
+                </div>
               )}
-            </AnimatePresence>
-          </>
-        )}
+
+              {selectedCredit ? (
+                <Motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  className="space-y-3"
+                >
+                  <p className="eyebrow-label">Slot Combination</p>
+                  <div className="grid max-h-72 grid-cols-2 gap-2 overflow-y-auto pr-1">
+                    {courseList.map((course, idx) => {
+                      const isSelected = initialSlot?.slot === course.slot;
+
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() =>
+                            onSlotSelect({
+                              ...course,
+                              selectedYear,
+                              selectedCredit,
+                            })
+                          }
+                          className={`rounded-lg border px-3 py-3 text-center text-sm transition-colors ${
+                            isSelected
+                              ? 'border-border-strong bg-elevated text-text-primary'
+                              : 'border-border-default bg-surface text-text-secondary hover:border-border-strong hover:text-text-primary'
+                          }`}
+                        >
+                          <span className="font-mono text-sm">{course.slot}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Motion.div>
+              ) : null}
+            </Motion.div>
+          ) : null}
+        </AnimatePresence>
       </div>
     </aside>
   );

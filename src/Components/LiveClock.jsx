@@ -1,21 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { useTheme } from '../contexts/ThemeContext';
+import React, { useEffect, useState } from 'react';
 
 const LiveClock = () => {
-  const { theme } = useTheme();
   const [time, setTime] = useState(new Date());
-  
+
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
-  
+
   return (
-    <div className="text-right">
-      <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+    <div className="hidden text-right sm:block">
+      <p className="text-sm font-medium text-text-secondary">
         {time.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
       </p>
-      <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
+      <p className="text-xs text-text-muted">
         {time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
       </p>
     </div>

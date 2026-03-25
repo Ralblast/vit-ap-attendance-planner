@@ -1,70 +1,56 @@
 import React, { useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { formatDate } from '../utils/dateUtils.js';
-import { useTheme } from '../contexts/ThemeContext.jsx';
 
 const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, eventsMap }) => {
-  const { theme } = useTheme();
   const [viewDate, setViewDate] = useState(new Date());
+  const skippedDateSet = new Set(skippedDates);
+  const selectableDates = new Set(classDates);
+  const today = formatDate(new Date());
+  const weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-  const handleMonthNav = (offset) => setViewDate(d => new Date(d.getFullYear(), d.getMonth() + offset, 1));
+  const handleMonthNav = offset =>
+    setViewDate(currentDate => new Date(currentDate.getFullYear(), currentDate.getMonth() + offset, 1));
 
   const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
-  const firstDayOfWeek = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay();
+  const firstDayOfWeek = (new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay() + 6) % 7;
   const calendarDays = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-  const selectableDates = new Set(classDates);
-
-  const Legend = () => (
-    <div className={`mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-      <div className="flex items-center gap-2">
-        <div className={`w-3 h-3 rounded-full ring-1 ${theme === 'dark' ? 'ring-green-400' : 'ring-green-500'}`}></div>
-        Class Day
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="w-3 h-3 rounded-full bg-red-500"></div>
-        Planned Skip
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="w-1.5 h-1.5 rounded-full bg-amber-500/80"></div>
-        Holiday/Break
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
-        Exam Period
-      </div>
-    </div>
-  );
 
   return (
-    <div className={`p-6 rounded-xl relative ${
-        theme === 'dark' 
-        ? 'bg-gray-800' 
-        : 'bg-slate-100'
-    }`}>
-      
-      <p className={`absolute top-2 left-0 right-0 text-center text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>
-        Tip: Click on green days to skip.
+    <div className="app-card p-5">
+      <p className="mb-4 text-sm text-text-muted">
+        Select a future class date to mark it as a planned skip.
       </p>
 
-      <div className="flex justify-between items-center mb-6 px-2">
-        <button onClick={() => handleMonthNav(-1)} className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-200 text-gray-500'}`}>
-          &lt;
+      <div className="mb-5 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => handleMonthNav(-1)}
+          className="rounded-lg p-2 text-text-muted transition-colors hover:bg-elevated hover:text-text-primary"
+        >
+          <ChevronLeft size={16} />
         </button>
-        <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+        <h3 className="text-base font-semibold text-text-primary">
           {viewDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
         </h3>
-        <button onClick={() => handleMonthNav(1)} className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-200 text-gray-500'}`}>
-          &gt;
+        <button
+          type="button"
+          onClick={() => handleMonthNav(1)}
+          className="rounded-lg p-2 text-text-muted transition-colors hover:bg-elevated hover:text-text-primary"
+        >
+          <ChevronRight size={16} />
         </button>
       </div>
 
-      <div className={`grid grid-cols-7 gap-1 text-center text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-black'} mb-4`}>
-        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => (
-          <div key={d}>{d}</div>
+      <div className="mb-3 grid grid-cols-7 gap-1 text-center">
+        {weekdayLabels.map(day => (
+          <div key={day} className="eyebrow-label py-2 text-center">
+            {day}
+          </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-2">
+      <div className="grid grid-cols-7 gap-1.5">
         {Array.from({ length: firstDayOfWeek }).map((_, i) => (
           <div key={`empty-${i}`} />
         ))}
@@ -73,48 +59,51 @@ const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, even
           const dateStr = formatDate(date);
           const event = eventsMap.get(dateStr);
           const isSelectable = selectableDates.has(dateStr);
-          const isSkipped = new Set(skippedDates).has(dateStr);
-          const isSunday = date.getDay() === 0;
+          const isSkipped = skippedDateSet.has(dateStr);
+          const isToday = dateStr === today;
+          const isBlocked = event && (event.type === 'holiday' || event.type === 'exam');
+          const isClickable = isSelectable && !isBlocked;
 
-          let dayClass = 'h-9 w-9 flex items-center justify-center rounded-full text-base transition-colors duration-150 relative ';
+          let dayClass =
+            'relative flex h-11 items-center justify-center rounded-md border border-transparent text-sm transition-colors duration-150';
           let title = event ? event.name : 'Click to plan a skip';
 
           if (isSkipped) {
-            dayClass += 'bg-red-500 text-white font-bold ring-2 ring-red-400 scale-110';
+            dayClass += ' bg-danger-dim text-danger';
             title = 'Click to un-skip';
-          } else if (event && (event.type === 'holiday' || event.type === 'exam')) {
-            // --- THE FIX: Removed 'cursor-not-allowed' from this line ---
-            dayClass += theme === 'dark' ? 'text-gray-400' : 'text-black';
-          } else if (isSelectable) {
-            dayClass += `cursor-pointer ${theme === 'dark' ? 'bg-green-800 ring-1 ring-green-400/80 text-green-300 hover:bg-green-700' : 'bg-green-200 ring-1 ring-green-500 text-green-700 hover:bg-green-300'}`;
-          } else if (isSunday) {
-            dayClass += theme === 'dark' ? 'text-amber-600/70' : 'text-amber-600';
+          } else if (isBlocked) {
+            dayClass += ' text-text-muted line-through';
+          } else if (isClickable) {
+            dayClass += ' cursor-pointer font-medium text-text-primary hover:bg-elevated';
           } else {
-            dayClass += theme === 'dark' ? 'text-gray-400' : 'text-black';
+            dayClass += ' text-text-secondary';
+          }
+
+          if (isToday) {
+            dayClass += ' border-accent bg-[var(--accent-glow)] text-text-primary';
           }
 
           let eventDot = null;
           if (event && !isSkipped) {
-            if (event.type === 'holiday') {
-              eventDot = <div className="absolute bottom-1.5 w-1.5 h-1.5 bg-amber-500/80 rounded-full"></div>;
-            } else if (event.type === 'exam') {
-              eventDot = <div className="absolute bottom-1.5 w-1.5 h-1.5 bg-indigo-500 rounded-full"></div>;
-            }
+            eventDot = (
+              <span
+                className={`absolute bottom-1.5 h-1 w-1 rounded-full ${
+                  event.type === 'holiday' ? 'bg-warning' : 'bg-text-muted'
+                }`}
+              />
+            );
           }
-          
-          const isDisabled = !isSelectable && !event;
-          const handleClick = () => {
-            if (isSelectable && !event) {
-              onDateToggle(dateStr);
-            }
-          };
 
           return (
             <button
               key={day}
+              type="button"
               title={title}
-              onClick={handleClick}
-              disabled={isDisabled}
+              onClick={() => {
+                if (isClickable) {
+                  onDateToggle(dateStr);
+                }
+              }}
               className={dayClass}
             >
               {day}
@@ -124,14 +113,16 @@ const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, even
         })}
       </div>
 
-      {skippedDates.length > 0 && (
-        <button onClick={onClear} className="text-xs text-red-500 hover:text-red-400 flex items-center gap-1 mt-5 ml-auto">
+      {skippedDates.length > 0 ? (
+        <button
+          type="button"
+          onClick={onClear}
+          className="mt-4 ml-auto flex items-center gap-1 text-xs text-danger transition-colors hover:text-danger"
+        >
           <Trash2 size={14} />
           Clear Selections
         </button>
-      )}
-
-      <Legend />
+      ) : null}
     </div>
   );
 };
