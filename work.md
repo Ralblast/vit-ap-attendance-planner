@@ -1,6 +1,6 @@
 # VIT-AP Attendance Planner: AI Context File
 
-This file is a compact orientation guide for another AI or developer. It explains what the project does, how the codebase is organized, where the logic lives, and what assumptions the app currently makes. It intentionally avoids long code dumps.
+This file is a compact orientation guide for another developer. It explains what the project does, how the codebase is organized, where the logic lives, and what assumptions the app currently makes. It intentionally avoids long code dumps.
 
 ## 1. What this project is
 
