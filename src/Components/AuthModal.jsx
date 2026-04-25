@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion as Motion } from 'framer-motion';
-import { Loader, X } from 'lucide-react';
+import { Eye, EyeOff, Loader, X } from 'lucide-react';
 
 import { useAuth } from '../contexts/AuthContext.jsx';
 
@@ -28,11 +28,11 @@ const AUTH_COPY = {
 
 const AUTH_ERRORS = {
   'auth/admin-restricted-operation': 'This Firebase project is blocking account creation right now.',
-  'auth/app-not-authorized': 'This app is not authorized in your Firebase project yet.',
-  'auth/configuration-not-found': 'Email/password auth is not fully configured in Firebase.',
+  'auth/app-not-authorized': 'Sign-in is not available for this domain yet.',
+  'auth/configuration-not-found': 'Sign-in is not available right now.',
   'auth/email-already-in-use': 'That email is already in use. Try signing in instead.',
   'auth/invalid-login-credentials': 'That email or password does not look right.',
-  'auth/invalid-api-key': 'The Firebase API key is invalid. Recheck src/firebase.js.',
+  'auth/invalid-api-key': 'Sign-in is temporarily unavailable.',
   'auth/invalid-credential': 'That email or password does not look right.',
   'auth/invalid-email': 'Enter a valid email address.',
   'auth/missing-email': 'Enter your email before continuing.',
@@ -53,12 +53,14 @@ const INITIAL_FORM = {
 };
 
 export default function AuthModal({ isOpen, onClose, onSuccess }) {
-  const { login, signup } = useAuth();
+  const { login, loginOrCreateAdmin, signup } = useAuth();
   const [mode, setMode] = useState(AUTH_MODE.LOGIN);
   const [form, setForm] = useState(INITIAL_FORM);
   const [fieldErrors, setFieldErrors] = useState({});
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const activeCopy = useMemo(() => AUTH_COPY[mode], [mode]);
 
@@ -69,6 +71,8 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
       setFieldErrors({});
       setSuccess('');
       setIsSubmitting(false);
+      setShowPassword(false);
+      setShowConfirmPassword(false);
     }
   }, [isOpen]);
 
@@ -100,7 +104,10 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
       setIsSubmitting(true);
 
       if (mode === AUTH_MODE.LOGIN) {
-        await login(form.email.trim(), form.password);
+        const email = form.email.trim();
+        const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || '';
+        const isAdminLogin = adminEmail && email.toLowerCase() === adminEmail.toLowerCase();
+        await (isAdminLogin ? loginOrCreateAdmin(email, form.password) : login(email, form.password));
         setSuccess('Signed in successfully.');
       } else {
         await signup(form.email.trim(), form.password);
@@ -185,16 +192,26 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
 
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium text-text-secondary">Password</span>
-                <input
-                  type="password"
-                  name="password"
-                  value={form.password}
-                  onChange={handleChange}
-                  autoComplete={mode === AUTH_MODE.LOGIN ? 'current-password' : 'new-password'}
-                  className="field-input"
-                  placeholder="Minimum 6 characters"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    name="password"
+                    value={form.password}
+                    onChange={handleChange}
+                    autoComplete={mode === AUTH_MODE.LOGIN ? 'current-password' : 'new-password'}
+                    className="field-input pr-11"
+                    placeholder="Minimum 6 characters"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(value => !value)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted transition-colors hover:text-text-primary"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
                 {fieldErrors.password ? (
                   <p className="mt-1.5 text-sm text-danger">{fieldErrors.password}</p>
                 ) : null}
@@ -205,16 +222,26 @@ export default function AuthModal({ isOpen, onClose, onSuccess }) {
                   <span className="mb-1.5 block text-sm font-medium text-text-secondary">
                     Confirm password
                   </span>
-                  <input
-                    type="password"
-                    name="confirmPassword"
-                    value={form.confirmPassword}
-                    onChange={handleChange}
-                    autoComplete="new-password"
-                    className="field-input"
-                    placeholder="Repeat the same password"
-                    required
-                  />
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      name="confirmPassword"
+                      value={form.confirmPassword}
+                      onChange={handleChange}
+                      autoComplete="new-password"
+                      className="field-input pr-11"
+                      placeholder="Repeat the same password"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(value => !value)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted transition-colors hover:text-text-primary"
+                      aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                    >
+                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                   {fieldErrors.confirmPassword ? (
                     <p className="mt-1.5 text-sm text-danger">{fieldErrors.confirmPassword}</p>
                   ) : null}

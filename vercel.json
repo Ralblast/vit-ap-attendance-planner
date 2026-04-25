@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/attendance-review",
-      "schedule": "0 4 * * 1"
+      "schedule": "30 15 * * 6"
     }
   ]
 }

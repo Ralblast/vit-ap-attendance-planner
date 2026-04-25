@@ -25,8 +25,9 @@ export default {
         'danger-dim': 'var(--red-dim)',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        mono: ['"JetBrains Mono"', '"Fira Code"', 'ui-monospace', 'monospace'],
+        display: ['"Space Grotesk"', 'Manrope', 'system-ui', 'sans-serif'],
+        sans: ['Manrope', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['"IBM Plex Mono"', '"JetBrains Mono"', 'ui-monospace', 'monospace'],
       },
       backdropBlur: {
         xs: '2px',

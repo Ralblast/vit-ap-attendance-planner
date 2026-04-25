@@ -7,6 +7,11 @@ const USER_COLLECTION = 'users';
 const WRITE_DEBOUNCE_MS = 1500;
 const DEFAULT_THEME = 'dark';
 const EMPTY_STRING = '';
+const DEFAULT_ALERT_THRESHOLD = 78;
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || '';
+
+const getUserRole = user =>
+  ADMIN_EMAIL && user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() ? 'admin' : 'student';
 
 const createCourseId = () => {
   if (globalThis.crypto?.randomUUID) {
@@ -28,41 +33,87 @@ const toSafeNumber = value => {
 
 const normalizeCourse = course => ({
   id: course?.id || createCourseId(),
+  courseName: course?.courseName || course?.slotLabel || EMPTY_STRING,
   slotLabel: course?.slotLabel || EMPTY_STRING,
   slotDays: Array.isArray(course?.slotDays) ? course.slotDays : [],
+  credit: course?.credit || EMPTY_STRING,
   classesTaken: toSafeNumber(course?.classesTaken),
   classesAttended: toSafeNumber(course?.classesAttended),
   skippedDates: Array.isArray(course?.skippedDates) ? course.skippedDates : [],
   lastUpdated: course?.lastUpdated || new Date(),
 });
 
-const createEmptyUserData = theme => ({
+const normalizeSnapshot = snapshot => ({
+  id: snapshot?.id || createCourseId(),
+  courseId: snapshot?.courseId || EMPTY_STRING,
+  attendancePercentage: toSafeNumber(snapshot?.attendancePercentage),
+  classesTaken: toSafeNumber(snapshot?.classesTaken),
+  classesAttended: toSafeNumber(snapshot?.classesAttended),
+  riskScore: toSafeNumber(snapshot?.riskScore),
+  riskLabel: snapshot?.riskLabel || 'Safe',
+  createdAt: snapshot?.createdAt || new Date(),
+});
+
+const normalizeAdminDraft = draft => ({
+  semesterName: draft?.semesterName || 'Winter 2025-26',
+  minAttendance: toSafeNumber(draft?.minAttendance || 75),
+  lastInstructionalDay: draft?.lastInstructionalDay || EMPTY_STRING,
+  eventCount: toSafeNumber(draft?.eventCount),
+  slotVersion: draft?.slotVersion || 'VIT-AP active mapping',
+});
+
+const createEmptyUserData = (theme, user) => ({
+  name: EMPTY_STRING,
+  email: user?.email || EMPTY_STRING,
+  role: getUserRole(user),
   selectedYear: EMPTY_STRING,
   selectedCredit: EMPTY_STRING,
   selectedSlot: EMPTY_STRING,
   slotDays: [],
   courses: [],
+  attendanceSnapshots: [],
+  alertEnabled: true,
+  alertThreshold: DEFAULT_ALERT_THRESHOLD,
+  weeklySummaryEnabled: true,
+  lastEmailSentAt: EMPTY_STRING,
+  lastCheckedAt: EMPTY_STRING,
+  adminDraft: normalizeAdminDraft(),
   theme: theme || DEFAULT_THEME,
   lastUpdated: new Date(),
 });
 
-const normalizeUserData = (data, theme) => {
+const normalizeUserData = (data, theme, user) => {
   if (!data) {
     return null;
   }
 
   return {
+    name: data.name || EMPTY_STRING,
+    email: data.email || EMPTY_STRING,
+    role: data.role === 'admin' ? 'admin' : getUserRole(user),
     selectedYear: data.selectedYear || EMPTY_STRING,
     selectedCredit: data.selectedCredit || EMPTY_STRING,
     selectedSlot: data.selectedSlot || EMPTY_STRING,
     slotDays: Array.isArray(data.slotDays) ? data.slotDays : [],
     courses: Array.isArray(data.courses) ? data.courses.map(normalizeCourse) : [],
+    attendanceSnapshots: Array.isArray(data.attendanceSnapshots)
+      ? data.attendanceSnapshots.map(normalizeSnapshot)
+      : [],
+    alertEnabled: data.alertEnabled !== false,
+    alertThreshold: toSafeNumber(data.alertThreshold || DEFAULT_ALERT_THRESHOLD),
+    weeklySummaryEnabled: data.weeklySummaryEnabled !== false,
+    lastEmailSentAt: data.lastEmailSentAt || EMPTY_STRING,
+    lastCheckedAt: data.lastCheckedAt || EMPTY_STRING,
+    adminDraft: normalizeAdminDraft(data.adminDraft),
     theme: data.theme || theme || DEFAULT_THEME,
     lastUpdated: data.lastUpdated || new Date(),
   };
 };
 
 const serializeUserData = userData => ({
+  name: userData.name || EMPTY_STRING,
+  email: userData.email || EMPTY_STRING,
+  role: userData.role || 'student',
   selectedYear: userData.selectedYear || EMPTY_STRING,
   selectedCredit: userData.selectedCredit || EMPTY_STRING,
   selectedSlot: userData.selectedSlot || EMPTY_STRING,
@@ -70,14 +121,25 @@ const serializeUserData = userData => ({
   courses: Array.isArray(userData.courses)
     ? userData.courses.map(course => ({
         id: course.id,
+        courseName: course.courseName || course.slotLabel || EMPTY_STRING,
         slotLabel: course.slotLabel,
         slotDays: Array.isArray(course.slotDays) ? course.slotDays : [],
+        credit: course.credit || EMPTY_STRING,
         classesTaken: toSafeNumber(course.classesTaken),
         classesAttended: toSafeNumber(course.classesAttended),
         skippedDates: Array.isArray(course.skippedDates) ? course.skippedDates : [],
         lastUpdated: course.lastUpdated || new Date(),
       }))
     : [],
+  attendanceSnapshots: Array.isArray(userData.attendanceSnapshots)
+    ? userData.attendanceSnapshots.slice(-120).map(normalizeSnapshot)
+    : [],
+  alertEnabled: userData.alertEnabled !== false,
+  alertThreshold: toSafeNumber(userData.alertThreshold || DEFAULT_ALERT_THRESHOLD),
+  weeklySummaryEnabled: userData.weeklySummaryEnabled !== false,
+  lastEmailSentAt: userData.lastEmailSentAt || EMPTY_STRING,
+  lastCheckedAt: userData.lastCheckedAt || EMPTY_STRING,
+  adminDraft: normalizeAdminDraft(userData.adminDraft),
   theme: userData.theme || DEFAULT_THEME,
   lastUpdated: userData.lastUpdated || new Date(),
 });
@@ -124,8 +186,8 @@ export function useUserSync(user, theme) {
 
         setUserData(
           snapshot.exists()
-            ? normalizeUserData(snapshot.data(), DEFAULT_THEME)
-            : createEmptyUserData(theme)
+            ? normalizeUserData(snapshot.data(), DEFAULT_THEME, user)
+            : createEmptyUserData(theme, user)
         );
         setErrorMessage('');
         skipPersistRef.current = true;
@@ -134,7 +196,7 @@ export function useUserSync(user, theme) {
         console.error('Failed to load user data from Firestore.', error);
 
         if (isMounted) {
-          setUserData(createEmptyUserData(theme));
+          setUserData(createEmptyUserData(theme, user));
           setErrorMessage(
             'Unable to load saved dashboard data. Check your Firestore rules for users/{uid}.'
           );
@@ -154,7 +216,7 @@ export function useUserSync(user, theme) {
       isMounted = false;
       clearTimeout(debounceRef.current);
     };
-  }, [theme, userDocRef]);
+  }, [theme, user, userDocRef]);
 
   useEffect(() => {
     if (!userDocRef || !hasLoadedRef.current || !userData) {
@@ -192,19 +254,22 @@ export function useUserSync(user, theme) {
         const slotDays = Array.isArray(slotObj?.days) ? slotObj.days : [];
         const timestamp = new Date();
         const currentData = userDataRef.current
-          ? normalizeUserData(userDataRef.current, theme)
-          : createEmptyUserData(theme);
+          ? normalizeUserData(userDataRef.current, theme, user)
+          : createEmptyUserData(theme, user);
         const existingCourse = currentData.courses.find(course => course.slotLabel === slotLabel);
         const savedCourse = existingCourse
           ? {
               ...existingCourse,
               slotDays,
+              credit: credit || EMPTY_STRING,
               lastUpdated: timestamp,
             }
           : {
               id: createCourseId(),
+              courseName: slotLabel,
               slotLabel,
               slotDays,
+              credit: credit || EMPTY_STRING,
               classesTaken: 0,
               classesAttended: 0,
               skippedDates: [],
@@ -213,13 +278,14 @@ export function useUserSync(user, theme) {
 
         setUserData(previousValue => {
           const baseData = previousValue
-            ? normalizeUserData(previousValue, theme)
+            ? normalizeUserData(previousValue, theme, user)
             : currentData;
           const matchingCourse = baseData.courses.find(course => course.slotLabel === slotLabel);
           const nextCourse = matchingCourse
             ? {
                 ...matchingCourse,
                 slotDays,
+                credit: credit || EMPTY_STRING,
                 lastUpdated: timestamp,
               }
             : savedCourse;
@@ -248,7 +314,7 @@ export function useUserSync(user, theme) {
         throw error;
       }
     },
-    [theme]
+    [theme, user]
   );
 
   const updateAttendance = useCallback(async (courseId, classesTaken, classesAttended) => {
@@ -262,6 +328,7 @@ export function useUserSync(user, theme) {
 
         return {
           ...previousValue,
+          lastCheckedAt: timestamp.toISOString(),
           courses: previousValue.courses.map(course =>
             course.id === courseId
               ? {
@@ -357,6 +424,97 @@ export function useUserSync(user, theme) {
     }
   }, []);
 
+  const updatePreferences = useCallback(async preferences => {
+    try {
+      const timestamp = new Date();
+
+      setUserData(previousValue => {
+        if (!previousValue) {
+          return previousValue;
+        }
+
+        return {
+          ...previousValue,
+          alertEnabled: preferences.alertEnabled ?? previousValue.alertEnabled,
+          alertThreshold: toSafeNumber(preferences.alertThreshold ?? previousValue.alertThreshold),
+          weeklySummaryEnabled:
+            preferences.weeklySummaryEnabled ?? previousValue.weeklySummaryEnabled,
+          lastEmailSentAt: preferences.lastEmailSentAt ?? previousValue.lastEmailSentAt,
+          lastUpdated: timestamp,
+        };
+      });
+    } catch (error) {
+      console.error('Failed to update notification preferences.', error);
+      throw error;
+    }
+  }, []);
+
+  const saveAttendanceSnapshot = useCallback(async snapshot => {
+    try {
+      const timestamp = new Date();
+
+      setUserData(previousValue => {
+        if (!previousValue) {
+          return previousValue;
+        }
+
+        const nextSnapshot = normalizeSnapshot({
+          ...snapshot,
+          createdAt: snapshot?.createdAt || timestamp,
+        });
+
+        const existingSnapshots = previousValue.attendanceSnapshots || [];
+        const nextDateStr = new Date(nextSnapshot.createdAt).toDateString();
+        
+        let replaced = false;
+        const newSnapshots = existingSnapshots.map(s => {
+          if (s.courseId === nextSnapshot.courseId && new Date(s.createdAt).toDateString() === nextDateStr) {
+            replaced = true;
+            return nextSnapshot;
+          }
+          return s;
+        });
+
+        if (!replaced) {
+          newSnapshots.push(nextSnapshot);
+        }
+
+        return {
+          ...previousValue,
+          attendanceSnapshots: newSnapshots.slice(-120),
+          lastUpdated: timestamp,
+        };
+      });
+    } catch (error) {
+      console.error('Failed to save attendance snapshot.', error);
+      throw error;
+    }
+  }, []);
+
+  const updateAdminDraft = useCallback(async adminDraft => {
+    try {
+      const timestamp = new Date();
+
+      setUserData(previousValue => {
+        if (!previousValue) {
+          return previousValue;
+        }
+
+        return {
+          ...previousValue,
+          adminDraft: normalizeAdminDraft({
+            ...previousValue.adminDraft,
+            ...adminDraft,
+          }),
+          lastUpdated: timestamp,
+        };
+      });
+    } catch (error) {
+      console.error('Failed to update admin draft.', error);
+      throw error;
+    }
+  }, []);
+
   return {
     userData,
     saveSlot,
@@ -364,6 +522,9 @@ export function useUserSync(user, theme) {
     updateSkips,
     updateTheme,
     deleteCourse,
+    updatePreferences,
+    saveAttendanceSnapshot,
+    updateAdminDraft,
     isLoading,
     errorMessage,
   };

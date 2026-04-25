@@ -17,7 +17,7 @@ const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, even
   const calendarDays = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
   return (
-    <div className="app-card p-5">
+    <div className="border-y border-border-faint py-5">
       <p className="mb-4 text-sm text-text-muted">
         Select a future class date to mark it as a planned skip.
       </p>
@@ -26,7 +26,7 @@ const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, even
         <button
           type="button"
           onClick={() => handleMonthNav(-1)}
-          className="rounded-lg p-2 text-text-muted transition-colors hover:bg-elevated hover:text-text-primary"
+          className="p-2 text-text-muted transition-colors hover:bg-elevated hover:text-text-primary"
         >
           <ChevronLeft size={16} />
         </button>
@@ -36,7 +36,7 @@ const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, even
         <button
           type="button"
           onClick={() => handleMonthNav(1)}
-          className="rounded-lg p-2 text-text-muted transition-colors hover:bg-elevated hover:text-text-primary"
+          className="p-2 text-text-muted transition-colors hover:bg-elevated hover:text-text-primary"
         >
           <ChevronRight size={16} />
         </button>
@@ -65,7 +65,7 @@ const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, even
           const isClickable = isSelectable && !isBlocked;
 
           let dayClass =
-            'relative flex h-11 items-center justify-center rounded-md border border-transparent text-sm transition-colors duration-150';
+            'relative flex h-11 items-center justify-center border border-transparent text-sm transition-colors duration-150';
           let title = event ? event.name : 'Click to plan a skip';
 
           if (isSkipped) {
