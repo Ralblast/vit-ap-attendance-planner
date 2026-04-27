@@ -25,9 +25,11 @@
   --green: #34d399;
   --amber: #fbbf24;
   --red: #f87171;
+  --blue: #38bdf8;
   --green-dim: rgba(52, 211, 153, 0.13);
   --amber-dim: rgba(251, 191, 36, 0.13);
   --red-dim: rgba(248, 113, 113, 0.13);
+  --blue-dim: rgba(56, 189, 248, 0.14);
 }
 
 html[data-theme='light'] {
@@ -53,9 +55,11 @@ html[data-theme='light'] {
   --green: #059669;
   --amber: #b45309;
   --red: #b91c1c;
+  --blue: #0369a1;
   --green-dim: rgba(5, 150, 105, 0.10);
   --amber-dim: rgba(180, 83, 9, 0.10);
   --red-dim: rgba(185, 28, 28, 0.10);
+  --blue-dim: rgba(3, 105, 161, 0.10);
 }
 
 * {

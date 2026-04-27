@@ -572,7 +572,29 @@ export default function App() {
   };
 
   const renderUserContent = () => (
-    <div className="mx-auto grid w-full max-w-[1320px] flex-1 gap-8 px-6 py-8 lg:grid-cols-[240px_1fr]">
+    <div className="mx-auto grid w-full max-w-[1320px] flex-1 gap-8 px-4 pb-24 pt-6 sm:px-6 sm:py-8 lg:grid-cols-[240px_1fr] lg:pb-8">
+      <nav
+        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border-default bg-surface/95 backdrop-blur-md lg:hidden"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        {visibleNavItems.map(item => {
+          const Icon = item.icon;
+          const active = screen === item.key;
+          return (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => setScreen(item.key)}
+              className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-medium ${
+                active ? 'text-accent' : 'text-text-muted'
+              }`}
+            >
+              <Icon size={18} />
+              {item.label}
+            </button>
+          );
+        })}
+      </nav>
       <aside className="hidden border-r border-border-faint pr-6 lg:block">
         <div className="sticky top-8 space-y-8">
           <div>
@@ -658,7 +680,7 @@ export default function App() {
   return (
     <div className="flex min-h-screen flex-col bg-base text-text-primary">
       <header className="border-b border-border-faint bg-surface/80 backdrop-blur-sm">
-        <div className="mx-auto flex h-14 w-full max-w-[1320px] items-center justify-between gap-4 px-6">
+        <div className="mx-auto flex h-14 w-full max-w-[1320px] items-center justify-between gap-3 px-4 sm:gap-4 sm:px-6">
           <button
             type="button"
             onClick={handleOpenDashboard}
@@ -666,7 +688,7 @@ export default function App() {
           >
             <Aperture className="text-accent" size={20} />
             <div>
-              <h1 className="font-display text-sm font-semibold text-text-primary">
+              <h1 className="whitespace-nowrap font-display text-sm font-semibold text-text-primary">
                 VIT-AP Attendance Planner
               </h1>
               <p className="hidden text-xs text-text-muted sm:block">VIT-AP planning workspace</p>

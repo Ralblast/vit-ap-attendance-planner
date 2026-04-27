@@ -109,7 +109,7 @@ export default function NotificationsScreen({
     <div className="space-y-8">
       <section className="border-b border-border-faint pb-8">
         <p className="eyebrow-label">Notifications</p>
-        <h2 className="mt-2 max-w-3xl text-4xl font-semibold tracking-[-0.04em]">
+        <h2 className="mt-2 max-w-3xl text-2xl font-semibold tracking-[-0.04em] sm:text-3xl lg:text-4xl">
           Email and Telegram alerts for low attendance and weekly course health.
         </h2>
       </section>

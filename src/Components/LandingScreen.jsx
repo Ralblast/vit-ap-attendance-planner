@@ -10,7 +10,7 @@ export default function LandingScreen({ onStartGuest, onSignIn }) {
         transition={{ duration: 0.45, ease: 'easeOut' }}
       >
         <p className="eyebrow-label">ML-Assisted Attendance Planning</p>
-        <h1 className="mt-4 max-w-3xl font-display text-6xl font-semibold leading-[0.95] tracking-[-0.06em] text-text-primary md:text-7xl">
+        <h1 className="mt-4 max-w-3xl font-display text-4xl font-semibold leading-[1] tracking-[-0.04em] text-text-primary sm:text-5xl sm:leading-[0.95] sm:tracking-[-0.06em] md:text-7xl">
           Plan every class. Protect your 75%.
         </h1>
         <p className="mt-6 max-w-xl text-lg text-text-secondary">

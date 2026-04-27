@@ -67,12 +67,12 @@ export default function DashboardScreen({
       <section className="grid gap-6 border-b border-border-faint pb-8 lg:grid-cols-[1.2fr_0.8fr]">
         <div>
           <p className="eyebrow-label">Command Dashboard</p>
-          <h2 className="mt-2 max-w-3xl text-4xl font-semibold tracking-[-0.04em] text-text-primary">
+          <h2 className="mt-2 max-w-3xl text-2xl font-semibold tracking-[-0.04em] text-text-primary sm:text-3xl lg:text-4xl">
             Attendance risk, recovery pressure, and semester progress in one view.
           </h2>
         </div>
 
-        <div className="grid grid-cols-2 gap-x-6 gap-y-4 border-l border-border-faint pl-6">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-4 border-t border-border-faint pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
           <div>
             <p className="eyebrow-label">Average</p>
             <p className="mt-1 font-display text-3xl font-semibold">
@@ -99,7 +99,7 @@ export default function DashboardScreen({
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
-        <div className="space-y-5 border-r border-border-faint pr-6">
+        <div className="space-y-5 lg:border-r lg:border-border-faint lg:pr-6">
           <div>
             <p className="eyebrow-label">Highest Risk</p>
             <p className="mt-2 text-2xl font-semibold text-text-primary">
@@ -148,12 +148,12 @@ export default function DashboardScreen({
               {summary.courseAnalytics.map(({ course, analytics }) => (
                 <article
                   key={course.id}
-                  className="grid gap-4 py-4 md:grid-cols-[1fr_0.8fr_0.8fr_auto] md:items-center"
+                  className="grid grid-cols-2 gap-4 py-4 md:grid-cols-[1fr_0.8fr_0.8fr_auto] md:items-center"
                 >
                   <button
                     type="button"
                     onClick={() => onOpenCourse(course)}
-                    className="text-left"
+                    className="col-span-2 text-left md:col-span-1"
                   >
                     <p className="font-display text-lg font-semibold text-text-primary">
                       {course.courseName || course.slotLabel}

@@ -139,7 +139,7 @@ export default function InsightsScreen({ courses, semesterData, snapshots }) {
     <div className="space-y-8">
       <section className="border-b border-border-faint pb-8">
         <p className="eyebrow-label">Insights</p>
-        <h2 className="mt-2 max-w-3xl text-4xl font-semibold tracking-[-0.04em]">
+        <h2 className="mt-2 max-w-3xl text-2xl font-semibold tracking-[-0.04em] sm:text-3xl lg:text-4xl">
           Behavioral patterns, semester heatmap, and forecasted attendance.
         </h2>
       </section>
@@ -182,7 +182,7 @@ export default function InsightsScreen({ courses, semesterData, snapshots }) {
               summary.courseAnalytics.map(({ course, analytics }) => (
                 <div
                   key={course.id}
-                  className="flex items-center justify-between gap-4 rounded border border-border-faint p-4 transition-colors hover:border-border-strong hover:bg-subtle"
+                  className="flex flex-col gap-3 rounded border border-border-faint p-4 transition-colors hover:border-border-strong hover:bg-subtle sm:flex-row sm:items-center sm:justify-between sm:gap-4"
                 >
                   <div className="min-w-0">
                     <h4 className="truncate font-semibold text-text-primary">
@@ -196,7 +196,7 @@ export default function InsightsScreen({ courses, semesterData, snapshots }) {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-6">
+                  <div className="flex items-center justify-between gap-6 sm:justify-end">
                     <div className="opacity-90">
                       <Sparkline snapshots={snapshotsByCourse[course.id]} />
                     </div>

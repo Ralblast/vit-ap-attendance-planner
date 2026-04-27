@@ -66,11 +66,6 @@ const buildProjectionHorizons = semesterData => {
   const events = semesterData?.academicCalendar || [];
   const horizons = [
     {
-      key: 'semester',
-      label: 'Till Semester',
-      date: lastInstructionalDay,
-    },
-    {
       key: 'cat1',
       label: 'Till CAT-1',
       date:
@@ -89,7 +84,8 @@ const buildProjectionHorizons = semesterData => {
       label: 'Till FAT',
       date:
         parseEnvDate(import.meta.env.VITE_FAT_START_DATE) ||
-        findExamCutoff(events, name => name.includes('fat')),
+        findExamCutoff(events, name => name.includes('fat')) ||
+        lastInstructionalDay,
     },
   ];
 
@@ -99,7 +95,7 @@ const buildProjectionHorizons = semesterData => {
     .filter(horizon => horizon.date)
     .map(horizon => ({
       ...horizon,
-      isPast: horizon.key !== 'semester' && horizon.date < today,
+      isPast: horizon.key !== 'fat' && horizon.date < today,
     }));
 };
 
@@ -112,7 +108,7 @@ const PlannerView = ({
   snapshots,
   onSaveSnapshot,
 }) => {
-  const [activeHorizonKey, setActiveHorizonKey] = useState('semester');
+  const [activeHorizonKey, setActiveHorizonKey] = useState('fat');
   const {
     classesTaken,
     setClassesTaken,
@@ -198,7 +194,7 @@ const PlannerView = ({
             Back to dashboard
           </button>
           <p className="eyebrow-label">Course Planner</p>
-          <h2 className="mt-2 text-4xl font-semibold tracking-[-0.04em]">
+          <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] sm:text-3xl lg:text-4xl">
             {activeCourse?.courseName || selectedSlot.slot}
           </h2>
           <p className="mt-2 font-mono text-sm text-accent">{selectedSlot.slot}</p>

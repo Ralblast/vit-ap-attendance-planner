@@ -6,20 +6,21 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const BLOCKING_TYPES = new Set(['holiday', 'exam', 'other']);
 
+// Distinct hues so the three event states are unambiguous at 14px.
+// Today is rendered as an overlay ring on top of whatever the cell already
+// is, so it can coexist with planned-skip / past / future / exam / holiday.
 const STATUS_STYLES = {
-  past: { bg: 'var(--accent-glow)', border: 'var(--accent-dim)' },
-  today: { bg: 'var(--accent)', border: 'var(--accent)' },
+  past: { bg: 'var(--accent)', border: 'var(--accent)' },
   future: { bg: 'transparent', border: 'var(--accent-dim)' },
-  'planned-skip': { bg: 'var(--amber-dim)', border: 'var(--amber)' },
-  holiday: { bg: 'var(--red-dim)', border: 'var(--red)' },
-  exam: { bg: 'var(--amber-dim)', border: 'var(--amber)' },
+  'planned-skip': { bg: 'var(--amber)', border: 'var(--amber)' },
+  holiday: { bg: 'var(--red)', border: 'var(--red)' },
+  exam: { bg: 'var(--blue)', border: 'var(--blue)' },
   'off-class': { bg: 'transparent', border: 'var(--border-faint)' },
   empty: { bg: 'transparent', border: 'transparent' },
 };
 
 const STATUS_LABELS = {
   past: 'Past class',
-  today: 'Today',
   future: 'Upcoming class',
   'planned-skip': 'Planned skip',
   holiday: 'Holiday',
@@ -109,18 +110,17 @@ const buildMatrix = ({ slotDays, course, semesterData, today }) => {
 
       let status = 'empty';
       let title = cellKey;
+      const isToday = cellKey === todayKey;
 
       if (inSemester) {
         if (isClassDayBySlot && blockingEvent) {
-          status = blockingEvent.type === 'exam' ? 'exam' : 'holiday';
+          status = blockingEvent.type === 'exam' || blockingEvent.type === 'other' ? 'exam' : 'holiday';
           title = `${cellKey} — ${blockingEvent.name}`;
           blockedClassDays += 1;
         } else if (isClassDayBySlot) {
           totalClassDays += 1;
           if (planned.has(cellKey)) {
             status = 'planned-skip';
-          } else if (cellKey === todayKey) {
-            status = 'today';
             futureClassDays += 1;
           } else if (cellKey < todayKey) {
             status = 'past';
@@ -129,7 +129,7 @@ const buildMatrix = ({ slotDays, course, semesterData, today }) => {
             status = 'future';
             futureClassDays += 1;
           }
-          title = `${cellKey} — ${STATUS_LABELS[status]}`;
+          title = `${cellKey} — ${STATUS_LABELS[status]}${isToday ? ' (today)' : ''}`;
         } else if (blockingEvent) {
           status = 'off-class';
           title = `${cellKey} — ${blockingEvent.name}`;
@@ -138,7 +138,7 @@ const buildMatrix = ({ slotDays, course, semesterData, today }) => {
         }
       }
 
-      column.push({ key: cellKey, status, title });
+      column.push({ key: cellKey, status, title, isToday });
     }
     cells.push(column);
   }
@@ -264,6 +264,9 @@ const SlotHeatmap = ({
                               ? 'none'
                               : `1px solid ${style.border}`,
                           borderRadius: 2,
+                          boxShadow: cell.isToday
+                            ? '0 0 0 2px var(--bg-base), 0 0 0 3.5px var(--accent)'
+                            : undefined,
                         }}
                       />
                     );
@@ -277,7 +280,7 @@ const SlotHeatmap = ({
 
       {showLegend ? (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[10px] text-text-muted">
-          {['past', 'today', 'future', 'planned-skip', 'holiday', 'exam'].map(key => {
+          {['past', 'future', 'planned-skip', 'holiday', 'exam'].map(key => {
             const style = STATUS_STYLES[key];
             return (
               <div key={key} className="flex items-center gap-1.5">
@@ -293,6 +296,17 @@ const SlotHeatmap = ({
               </div>
             );
           })}
+          <div className="flex items-center gap-1.5">
+            <span
+              className="inline-block h-2.5 w-2.5"
+              style={{
+                background: 'var(--bg-elevated)',
+                boxShadow: '0 0 0 1.5px var(--accent)',
+                borderRadius: 2,
+              }}
+            />
+            Today
+          </div>
         </div>
       ) : null}
     </div>
