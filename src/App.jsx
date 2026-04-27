@@ -162,6 +162,7 @@ export default function App() {
   const [isSavingCourse, setIsSavingCourse] = useState(false);
   const hydratedCourseIdRef = useRef(null);
   const plannerSyncReadyRef = useRef(false);
+  const themeHydratedRef = useRef(false);
 
   const { data: semesterData, isLoading, error } = useSemesterData();
   const plannerData = useAttendancePlanner(
@@ -220,19 +221,24 @@ export default function App() {
     setScreen(user ? (isAdmin ? SCREEN.ADMIN : SCREEN.DASHBOARD) : SCREEN.LANDING);
   }, [authLoading, isAdmin, user]);
 
+  // Pull the saved theme from Firestore exactly once per session, then let
+  // the local theme state own future toggles. Without this guard the two
+  // sync effects ping-pong and the theme briefly flips back, causing a
+  // visible flicker on screens with many themed elements.
   useEffect(() => {
-    if (!user || !userData?.theme || userData.theme === theme) {
+    if (!user || !userData?.theme || themeHydratedRef.current) {
       return;
     }
-
-    setTheme(userData.theme);
+    themeHydratedRef.current = true;
+    if (userData.theme !== theme) {
+      setTheme(userData.theme);
+    }
   }, [setTheme, theme, user, userData?.theme]);
 
   useEffect(() => {
-    if (!user || !userData || userData.theme === theme) {
+    if (!user || !userData || !themeHydratedRef.current || userData.theme === theme) {
       return;
     }
-
     updateTheme(theme).catch(syncError => {
       console.error('Failed to sync theme preference.', syncError);
     });
