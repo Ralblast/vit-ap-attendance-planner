@@ -45,9 +45,15 @@ const applyTheme = nextTheme => {
   const _force = window.getComputedStyle(document.body).opacity;
   void _force;
 
-  setTimeout(() => {
-    style.remove();
-  }, 0);
+  // Double rAF guarantees the swap PAINT completes with transitions disabled
+  // before we restore them. setTimeout(0) is too early — it can fire before
+  // the paint, causing the cascade-flicker on screens with many themed
+  // elements.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      style.remove();
+    });
+  });
 };
 
 export const useTheme = () => {
