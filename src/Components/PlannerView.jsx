@@ -3,6 +3,7 @@ import { motion as Motion } from 'framer-motion';
 import { ArrowLeft, RotateCcw, Save } from 'lucide-react';
 
 import CalendarPlanner from './CalendarPlanner.jsx';
+import SlotHeatmap from './SlotHeatmap.jsx';
 import { calculateAttendanceAnalytics } from '../utils/attendanceAnalytics.js';
 import { formatDate } from '../utils/dateUtils.js';
 
@@ -304,6 +305,19 @@ const PlannerView = ({
           </div>
         </section>
       ) : null}
+
+      <section className="space-y-3 border-b border-border-faint pb-8">
+        <div>
+          <p className="eyebrow-label">Semester Calendar</p>
+          <h3 className="mt-1 text-2xl font-semibold">Class days for {selectedSlot.slot}</h3>
+        </div>
+        <SlotHeatmap
+          slotLabel={selectedSlot.slot}
+          slotDays={selectedSlot.days}
+          course={activeCourse}
+          semesterData={semesterData}
+        />
+      </section>
 
       <section className="grid gap-8 lg:grid-cols-[0.82fr_1.18fr]">
         <div className="space-y-6 lg:border-r lg:border-border-faint lg:pr-8">
