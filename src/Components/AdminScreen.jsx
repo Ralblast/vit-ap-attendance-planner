@@ -1,6 +1,25 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+
+import { auth } from '../firebase.js';
 
 const EVENT_TYPES = ['academic', 'holiday', 'exam', 'other'];
+
+const adminFetch = async (path, body) => {
+  const token = auth?.currentUser ? await auth.currentUser.getIdToken() : '';
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (response.status === 401 || response.status === 403) {
+    return { ok: false, error: 'Admin access required.' };
+  }
+  return response.json().catch(() => ({ ok: false, error: 'Invalid response.' }));
+};
 
 const countSlots = slotsByYear =>
   Object.values(slotsByYear || {}).reduce((total, yearData) => {
@@ -36,38 +55,29 @@ export default function AdminScreen({ userData, semesterData, onUpdateAdminDraft
   );
   const totalSlots = useMemo(() => countSlots(semesterData?.slotsByYear), [semesterData?.slotsByYear]);
 
-  const validateSemester = async () => {
+  const validateSemester = useCallback(async () => {
     setStatus('');
-
     try {
-      const response = await fetch('/api/admin/semester', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: draft.semesterName,
-          minAttendance: draft.minAttendance,
-          lastInstructionalDay: draft.lastInstructionalDay,
-          isActive: true,
-        }),
+      const result = await adminFetch('/api/admin/semester', {
+        name: draft.semesterName,
+        minAttendance: draft.minAttendance,
+        lastInstructionalDay: draft.lastInstructionalDay,
+        isActive: true,
       });
-      const result = await response.json();
-      setStatus(result.ok ? 'Semester settings are ready to publish.' : 'Semester settings need review.');
+      setStatus(
+        result.ok
+          ? 'Semester settings are ready to publish.'
+          : result.error || 'Semester settings need review.'
+      );
     } catch {
       setStatus('Unable to validate the semester configuration right now.');
     }
-  };
+  }, [draft.semesterName, draft.minAttendance, draft.lastInstructionalDay]);
 
-  const validateEvent = async () => {
+  const validateEvent = useCallback(async () => {
     setStatus('');
-
     try {
-      const response = await fetch('/api/admin/events', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(eventDraft),
-      });
-      const result = await response.json();
-
+      const result = await adminFetch('/api/admin/events', eventDraft);
       if (result.ok) {
         await onUpdateAdminDraft({
           eventCount: Number(draft.eventCount || semesterData?.academicCalendar?.length || 0) + 1,
@@ -75,33 +85,31 @@ export default function AdminScreen({ userData, semesterData, onUpdateAdminDraft
         setStatus('Calendar event is ready to publish.');
         setEventDraft({ name: '', type: 'holiday', date: '', startDate: '', endDate: '' });
       } else {
-        setStatus('Calendar event needs review.');
+        setStatus(result.error || 'Calendar event needs review.');
       }
     } catch {
       setStatus('Unable to validate the calendar event right now.');
     }
-  };
+  }, [draft.eventCount, eventDraft, onUpdateAdminDraft, semesterData?.academicCalendar?.length]);
 
-  const validateSlots = async () => {
+  const validateSlots = useCallback(async () => {
     setStatus('');
-
     try {
-      const response = await fetch('/api/admin/slots', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          year: 'active',
-          credit: 'all',
-          slots: Object.keys(semesterData?.slotsByYear || {}),
-          slotDays: semesterData?.slotsByYear || {},
-        }),
+      const result = await adminFetch('/api/admin/slots', {
+        year: 'active',
+        credit: 'all',
+        slots: Object.keys(semesterData?.slotsByYear || {}),
+        slotDays: semesterData?.slotsByYear || {},
       });
-      const result = await response.json();
-      setStatus(result.ok ? 'Slot mapping is ready to publish.' : 'Slot mapping needs review.');
+      setStatus(
+        result.ok
+          ? 'Slot mapping is ready to publish.'
+          : result.error || 'Slot mapping needs review.'
+      );
     } catch {
       setStatus('Unable to validate slot mapping right now.');
     }
-  };
+  }, [semesterData?.slotsByYear]);
 
   return (
     <div className="space-y-8">

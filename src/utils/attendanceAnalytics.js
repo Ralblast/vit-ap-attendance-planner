@@ -6,6 +6,12 @@ import { formatDate } from './dateUtils.js';
 
 const RISK_LABELS = ['Safe', 'Warning', 'Critical'];
 const DAY_MS = 24 * 60 * 60 * 1000;
+const BLOCKING_EVENT_TYPES = new Set(['holiday', 'exam', 'other']);
+const MAX_RECOVERY_PROBES = 300;
+const FORECAST_MIN_SAMPLES = 4;
+const FORECAST_EWMA_ALPHA = 0.4;
+const FORECAST_FALLBACK_HORIZON_DAYS = 30;
+const FORECAST_CONFIDENCE_Z = 1.96;
 
 const clamp = (value, min = 0, max = 100) => Math.min(max, Math.max(min, value));
 
@@ -31,7 +37,7 @@ const buildBlockedDateSet = academicCalendar => {
   const blockedDates = new Set();
 
   (academicCalendar || []).forEach(event => {
-    if (event.type !== 'holiday' && event.type !== 'exam') {
+    if (!BLOCKING_EVENT_TYPES.has(event.type)) {
       return;
     }
 
@@ -93,10 +99,7 @@ export const getRemainingClassDates = (
 
 const buildTrend = snapshots => {
   const points = (Array.isArray(snapshots) ? snapshots : [])
-    .map((snapshot, index) => [
-      index,
-      toNumber(snapshot.attendancePercentage ?? snapshot.currentAttendance),
-    ])
+    .map((snapshot, index) => [index, toNumber(snapshot.attendancePercentage)])
     .filter(([, value]) => value > 0);
 
   if (points.length < 2) {
@@ -111,6 +114,64 @@ const buildTrend = snapshots => {
     slope,
     direction: slope > 0.35 ? 'improving' : slope < -0.35 ? 'declining' : 'stable',
     predictedNext: clamp(line(points.length)),
+  };
+};
+
+// Forecast attendance using a linear regression on the (days, percentage)
+// timeseries plus an EWMA-smoothed "current" reading. Confidence band is
+// derived from the residual standard deviation. Returns { ready: false }
+// when there are too few snapshots to fit a meaningful trend.
+export const forecastAttendance = (snapshots, { lastInstructionalDay, fromDate } = {}) => {
+  const ordered = (Array.isArray(snapshots) ? snapshots : [])
+    .map(snapshot => ({
+      time: parseDate(snapshot.createdAt),
+      value: toNumber(snapshot.attendancePercentage),
+    }))
+    .filter(entry => entry.time && entry.value > 0)
+    .sort((a, b) => a.time - b.time);
+
+  if (ordered.length < FORECAST_MIN_SAMPLES) {
+    return { ready: false, sampleSize: ordered.length };
+  }
+
+  const startMs = ordered[0].time.getTime();
+  const points = ordered.map(entry => [
+    (entry.time.getTime() - startMs) / DAY_MS,
+    entry.value,
+  ]);
+
+  const regression = linearRegression(points);
+  const line = linearRegressionLine(regression);
+  const slopePerDay = Number(regression.m) || 0;
+
+  let smoothed = points[0][1];
+  for (let index = 1; index < points.length; index += 1) {
+    smoothed = FORECAST_EWMA_ALPHA * points[index][1] + (1 - FORECAST_EWMA_ALPHA) * smoothed;
+  }
+
+  const residuals = points.map(([x, y]) => y - line(x));
+  const variance = residuals.reduce((sum, value) => sum + value * value, 0) / residuals.length;
+  const stdError = Math.sqrt(variance);
+
+  const targetDate = parseDate(lastInstructionalDay);
+  const referenceDate = parseDate(fromDate) || new Date();
+  const lastX = points[points.length - 1][0];
+  const horizonX = targetDate
+    ? Math.max(lastX, (targetDate.getTime() - startMs) / DAY_MS)
+    : (referenceDate.getTime() - startMs) / DAY_MS + FORECAST_FALLBACK_HORIZON_DAYS;
+
+  const predicted = clamp(line(horizonX));
+  const margin = FORECAST_CONFIDENCE_Z * stdError;
+
+  return {
+    ready: true,
+    sampleSize: ordered.length,
+    smoothedCurrent: Number(clamp(smoothed).toFixed(1)),
+    predicted: Number(predicted.toFixed(1)),
+    low: Number(clamp(predicted - margin).toFixed(1)),
+    high: Number(clamp(predicted + margin).toFixed(1)),
+    slopePerDay: Number(slopePerDay.toFixed(3)),
+    stdError: Number(stdError.toFixed(2)),
   };
 };
 
@@ -168,7 +229,7 @@ const getRecoveryClassesNeeded = (classesTaken, classesAttended, threshold) => {
     projectedTaken += 1;
     projectedAttended += 1;
 
-    if (requiredClasses > 300) {
+    if (requiredClasses > MAX_RECOVERY_PROBES) {
       break;
     }
   }
@@ -229,6 +290,10 @@ export const calculateAttendanceAnalytics = ({
     ? Math.max(0, Math.ceil((lastInstructionalDay - (parseDate(fromDate) || new Date())) / DAY_MS))
     : 0;
   const trend = buildTrend(snapshots);
+  const forecast = forecastAttendance(snapshots, {
+    lastInstructionalDay: semester.lastInstructionalDay,
+    fromDate,
+  });
   const trendBucket = trend.slope > 0.35 ? 1 : trend.slope < -0.35 ? -1 : 0;
   const classifierLabel = getMlLabel([
     currentAttendance,
@@ -267,6 +332,7 @@ export const calculateAttendanceAnalytics = ({
     riskLabel,
     classifierLabel,
     trend,
+    forecast,
     daysLeft,
     plannedSkipCount,
     remainingClassDates,

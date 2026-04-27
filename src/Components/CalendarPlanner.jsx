@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { formatDate } from '../utils/dateUtils.js';
 
+const BLOCKING_EVENT_TYPES = new Set(['holiday', 'exam', 'other']);
+
 const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, eventsMap }) => {
   const [viewDate, setViewDate] = useState(new Date());
   const skippedDateSet = new Set(skippedDates);
@@ -61,7 +63,7 @@ const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, even
           const isSelectable = selectableDates.has(dateStr);
           const isSkipped = skippedDateSet.has(dateStr);
           const isToday = dateStr === today;
-          const isBlocked = event && (event.type === 'holiday' || event.type === 'exam');
+          const isBlocked = event ? BLOCKING_EVENT_TYPES.has(event.type) : false;
           const isClickable = isSelectable && !isBlocked;
 
           let dayClass =

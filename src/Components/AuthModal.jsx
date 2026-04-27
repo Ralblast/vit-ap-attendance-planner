@@ -28,6 +28,7 @@ const AUTH_COPY = {
 
 const AUTH_ERRORS = {
   'auth/admin-restricted-operation': 'This Firebase project is blocking account creation right now.',
+  'auth/admin-bootstrap-failed': 'Admin sign-in is not ready right now. Check the server configuration and try again.',
   'auth/app-not-authorized': 'Sign-in is not available for this domain yet.',
   'auth/configuration-not-found': 'Sign-in is not available right now.',
   'auth/email-already-in-use': 'That email is already in use. Try signing in instead.',

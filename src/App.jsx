@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Aperture, BarChart3, Bell, CalendarRange, LayoutDashboard, Loader, Settings, X } from 'lucide-react';
 import { AnimatePresence, motion as Motion } from 'framer-motion';
 
@@ -18,6 +18,7 @@ import { useSemesterData } from './hooks/useSemesterData.js';
 import { useTheme } from './contexts/ThemeContext.jsx';
 import { useAuth } from './contexts/AuthContext.jsx';
 import { useUserSync } from './hooks/useUserSync.js';
+import { calculateAttendanceAnalytics } from './utils/attendanceAnalytics.js';
 
 const SCREEN = {
   LANDING: 'landing',
@@ -151,8 +152,8 @@ const AddCourseModal = ({
 );
 
 export default function App() {
-  const { theme } = useTheme();
-  const { user, loading: authLoading, logout } = useAuth();
+  const { theme, setTheme } = useTheme();
+  const { user, loading: authLoading, logout, isAdmin } = useAuth();
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [screen, setScreen] = useState(SCREEN.LANDING);
   const [activeCourseId, setActiveCourseId] = useState(null);
@@ -180,7 +181,7 @@ export default function App() {
     updateAdminDraft,
     isLoading: isUserSyncLoading,
     errorMessage: userSyncErrorMessage,
-  } = useUserSync(user, theme);
+  } = useUserSync(user, theme, isAdmin);
 
   const activeCourse = useMemo(
     () => userData?.courses?.find(course => course.id === activeCourseId) || null,
@@ -199,10 +200,10 @@ export default function App() {
   const isAppLoading = isLoading || authLoading || (Boolean(user) && isUserSyncLoading);
   const visibleNavItems = useMemo(
     () =>
-      userData?.role === 'admin'
+      isAdmin
         ? NAV_ITEMS.filter(item => item.adminOnly)
         : NAV_ITEMS.filter(item => !item.adminOnly),
-    [userData?.role]
+    [isAdmin]
   );
 
   useEffect(() => {
@@ -216,18 +217,26 @@ export default function App() {
     setActiveCourseId(null);
     setPendingCourseSlot(null);
     setIsSavingCourse(false);
-    setScreen(user ? (userData?.role === 'admin' ? SCREEN.ADMIN : SCREEN.DASHBOARD) : SCREEN.LANDING);
-  }, [authLoading, user, userData?.role]);
+    setScreen(user ? (isAdmin ? SCREEN.ADMIN : SCREEN.DASHBOARD) : SCREEN.LANDING);
+  }, [authLoading, isAdmin, user]);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !userData?.theme || userData.theme === theme) {
+      return;
+    }
+
+    setTheme(userData.theme);
+  }, [setTheme, theme, user, userData?.theme]);
+
+  useEffect(() => {
+    if (!user || !userData || userData.theme === theme) {
       return;
     }
 
     updateTheme(theme).catch(syncError => {
       console.error('Failed to sync theme preference.', syncError);
     });
-  }, [theme, updateTheme, user]);
+  }, [theme, updateTheme, user, userData]);
 
   useEffect(() => {
     if (!user || screen !== SCREEN.PLANNER || !activeCourse || !selectedSlot) {
@@ -274,21 +283,38 @@ export default function App() {
   ]);
 
   useEffect(() => {
-    if (!user || screen !== SCREEN.PLANNER || !activeCourseId || !plannerSyncReadyRef.current) {
+    if (
+      !user ||
+      screen !== SCREEN.PLANNER ||
+      !activeCourse ||
+      !activeCourseId ||
+      !plannerSyncReadyRef.current ||
+      !plannerData.calculationData.isValid
+    ) {
+      return;
+    }
+
+    const nextClassesTaken = parsePlannerValue(plannerData.classesTaken);
+    const nextClassesAttended = parsePlannerValue(plannerData.classesAttended);
+
+    if (
+      nextClassesTaken === Number(activeCourse.classesTaken || 0) &&
+      nextClassesAttended === Number(activeCourse.classesAttended || 0)
+    ) {
       return;
     }
 
     updateAttendance(
       activeCourseId,
-      parsePlannerValue(plannerData.classesTaken),
-      parsePlannerValue(plannerData.classesAttended)
-    ).then(() => {
-      handleSaveSnapshot();
-    }).catch(syncError => {
+      nextClassesTaken,
+      nextClassesAttended
+    ).catch(syncError => {
       console.error('Failed to sync attendance changes.', syncError);
     });
   }, [
+    activeCourse,
     activeCourseId,
+    plannerData.calculationData.isValid,
     plannerData.classesAttended,
     plannerData.classesTaken,
     screen,
@@ -297,14 +323,21 @@ export default function App() {
   ]);
 
   useEffect(() => {
-    if (!user || screen !== SCREEN.PLANNER || !activeCourseId || !plannerSyncReadyRef.current) {
+    if (!user || screen !== SCREEN.PLANNER || !activeCourse || !activeCourseId || !plannerSyncReadyRef.current) {
+      return;
+    }
+
+    const expectedSkips = JSON.stringify(activeCourse.skippedDates || []);
+    const nextSkips = JSON.stringify(plannerData.skippedDates || []);
+
+    if (expectedSkips === nextSkips) {
       return;
     }
 
     updateSkips(activeCourseId, plannerData.skippedDates).catch(syncError => {
       console.error('Failed to sync skipped dates.', syncError);
     });
-  }, [activeCourseId, plannerData.skippedDates, screen, updateSkips, user]);
+  }, [activeCourse, activeCourseId, plannerData.skippedDates, screen, updateSkips, user]);
 
   const handleOpenDashboard = () => {
     hydratedCourseIdRef.current = null;
@@ -312,7 +345,7 @@ export default function App() {
     setSelectedSlot(null);
     setActiveCourseId(null);
     setPendingCourseSlot(null);
-    setScreen(user ? (userData?.role === 'admin' ? SCREEN.ADMIN : SCREEN.DASHBOARD) : SCREEN.LANDING);
+    setScreen(user ? (isAdmin ? SCREEN.ADMIN : SCREEN.DASHBOARD) : SCREEN.LANDING);
   };
 
   const handleOpenCourse = course => {
@@ -354,7 +387,7 @@ export default function App() {
     }
 
     setPendingCourseSlot(null);
-    setScreen(user ? (userData?.role === 'admin' ? SCREEN.ADMIN : SCREEN.DASHBOARD) : SCREEN.LANDING);
+    setScreen(user ? (isAdmin ? SCREEN.ADMIN : SCREEN.DASHBOARD) : SCREEN.LANDING);
   };
 
   const handleSlotSelect = slot => {
@@ -406,13 +439,12 @@ export default function App() {
     }
   };
 
-  async function handleSaveSnapshot() {
-    if (!user || !activeCourse) {
+  const handleSaveSnapshot = useCallback(async () => {
+    if (!user || !activeCourse || !plannerData.calculationData.isValid) {
       return;
     }
 
     try {
-      const { calculateAttendanceAnalytics } = await import('./utils/attendanceAnalytics.js');
       const analytics = calculateAttendanceAnalytics({
         course: {
           ...activeCourse,
@@ -440,7 +472,17 @@ export default function App() {
     } catch (snapshotError) {
       console.error('Failed to save attendance snapshot.', snapshotError);
     }
-  };
+  }, [
+    activeCourse,
+    plannerData.calculationData.isValid,
+    plannerData.classesAttended,
+    plannerData.classesTaken,
+    plannerData.skippedDates,
+    saveAttendanceSnapshot,
+    semesterData,
+    snapshotsByCourse,
+    user,
+  ]);
 
   const handleLogout = async () => {
     try {
@@ -452,7 +494,7 @@ export default function App() {
   };
 
   const renderWorkspaceScreen = () => {
-    if (screen === SCREEN.ADMIN && userData?.role !== 'admin') {
+    if (screen === SCREEN.ADMIN && !isAdmin) {
       return (
         <DashboardScreen
           courses={userData?.courses || []}
@@ -553,7 +595,7 @@ export default function App() {
               );
             })}
           </nav>
-          {userData?.role !== 'admin' ? (
+          {!isAdmin ? (
             <button type="button" onClick={handleAddCourse} className="primary-button w-full">
               <CalendarRange size={16} />
               Add course
@@ -685,7 +727,7 @@ export default function App() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         onSuccess={() =>
-          setScreen(userData?.role === 'admin' ? SCREEN.ADMIN : SCREEN.DASHBOARD)
+          setScreen(isAdmin ? SCREEN.ADMIN : SCREEN.DASHBOARD)
         }
       />
     </div>

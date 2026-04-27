@@ -17,7 +17,12 @@ const getRiskClassName = label => {
 };
 
 const getSemesterProgress = semesterData => {
-  const startEvent = semesterData?.academicCalendar?.find(event => event.type === 'academic');
+  const calendar = semesterData?.academicCalendar || [];
+  const commencement = calendar.find(
+    event => typeof event.name === 'string' && /commencement/i.test(event.name)
+  );
+  const fallbackStart = calendar.find(event => event.type === 'academic' && event.date);
+  const startEvent = commencement || fallbackStart;
   const startDate = startEvent?.date ? new Date(`${startEvent.date}T00:00:00`) : null;
   const endDate = semesterData?.lastInstructionalDay;
 

@@ -1,21 +1,34 @@
-import { readJsonBody, requireMethod } from '../lib/http.js';
+import { readJsonBody, requireAdmin, requireMethod } from '../lib/http.js';
 
 export default async function handler(request, response) {
   if (!requireMethod(request, response, ['GET', 'POST'])) {
     return;
   }
 
+  const admin = await requireAdmin(request, response);
+  if (!admin) {
+    return;
+  }
+
   if (request.method === 'GET') {
-    return response.status(200).json({
+    response.status(200).json({
       ok: true,
       message: 'Use POST to validate and preview semester updates before saving them in Firestore.',
     });
+    return;
   }
 
-  const body = await readJsonBody(request);
+  let body;
+  try {
+    body = await readJsonBody(request);
+  } catch {
+    response.status(413).json({ ok: false, error: 'Payload too large.' });
+    return;
+  }
+
   const semester = {
     id: body.id || `semester-${Date.now()}`,
-    name: body.name || 'Active Semester',
+    name: String(body.name || 'Active Semester').slice(0, 120),
     startDate: body.startDate || '',
     lastInstructionalDay: body.lastInstructionalDay || '',
     minAttendance: Number(body.minAttendance || 75),
@@ -23,5 +36,5 @@ export default async function handler(request, response) {
     updatedAt: new Date().toISOString(),
   };
 
-  return response.status(200).json({ ok: true, semester });
+  response.status(200).json({ ok: true, semester });
 }

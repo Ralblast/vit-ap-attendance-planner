@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export function useSemesterData() {
   const [data, setData] = useState(null);
@@ -6,26 +6,34 @@ export function useSemesterData() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    
-    fetch('/semester-data.json')
+    const controller = new AbortController();
+
+    fetch('/semester-data.json', { signal: controller.signal })
       .then(response => {
         if (!response.ok) {
-          throw new Error('Network response was not ok');
+          throw new Error(`Failed to load semester data (${response.status})`);
         }
         return response.json();
       })
       .then(jsonData => {
-      
-        jsonData.lastInstructionalDay = new Date(jsonData.lastInstructionalDay);
-        setData(jsonData);
+        const lastDay = new Date(jsonData.lastInstructionalDay);
+        setData({
+          ...jsonData,
+          lastInstructionalDay: Number.isNaN(lastDay.getTime()) ? null : lastDay,
+        });
         setIsLoading(false);
       })
-      .catch(error => {
-        console.error("Failed to fetch semester data:", error);
-        setError(error);
+      .catch(fetchError => {
+        if (fetchError.name === 'AbortError') {
+          return;
+        }
+        console.error('Failed to fetch semester data:', fetchError);
+        setError(fetchError);
         setIsLoading(false);
       });
-  }, []); 
+
+    return () => controller.abort();
+  }, []);
 
   return { data, isLoading, error };
 }

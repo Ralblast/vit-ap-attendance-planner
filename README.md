@@ -1,123 +1,134 @@
-# VIT AP Attendance Planner
+# VIT-AP Attendance Planner
 
-A smart attendance tracking tool built for VIT-AP students to stay on top of the 75% attendance requirement without the mental math.
+A planning workspace for VIT-AP students who need to keep their per-course
+attendance above 75% without spreadsheets. The app combines slot-aware class
+date enumeration, risk forecasting, a semester heatmap, and weekly delivery
+of attendance reviews via email or Telegram.
 
-Planning your bunk days has never been easier.
-
-## What It Does
-
-This planner helps you track attendance across all your courses and shows you exactly how many classes you can afford to skip (or need to attend) to stay above the 75% threshold. It handles VIT-AP's unique slot-based scheduling system with 47 different course combinations and automatically accounts for holidays, exams, and other non-class days.
-
-No more guessing. No more manual calculations. Just honest numbers.
+Live: <https://vit-ap-attendance-planner.vercel.app>
 
 ## Features
 
-- **Real-time attendance tracking** – Enter your current attendance and see your percentage instantly
-- **Smart projections** – Calculates how many more classes you need to hit 75% or how many you can safely skip
-- **Academic calendar integration** – Automatically excludes holidays, exam days, and breaks from calculations
-- **Interactive calendar view** – Visual month-by-month breakdown showing class days, skipped dates, and important events
-- **Slot-based scheduling** – Supports all 47 VIT-AP course slot combinations from the official timetable
-- **Dark mode** – Because we're all coding (or bunking) late at night anyway
-- **Responsive design** – Works on your phone when you're deciding whether to attend that 8 AM class
+- **Slot-aware planner** — pick a year/credit/slot combination and the planner
+  enumerates remaining class days against the official Winter 2025-26 calendar.
+- **Risk engine** — per-course current/projected attendance, recovery classes
+  needed, planned-skip buffer, and a 0–100 risk score.
+- **Forecast model** — once you have ≥4 saved snapshots per course, the
+  Insights screen shows an EWMA-smoothed current attendance plus a linear
+  regression forecast to the last instructional day with a 95 % band.
+- **Semester heatmap** — GitHub-style grid of every weekday across the
+  semester, highlighting class days, planned skips, holidays, and exams.
+- **Notifications** — push reviews to email and/or Telegram. The weekly cron
+  also alerts you when current/projected/forecast-low slips below your
+  threshold.
+- **Admin console** — gated by Firebase custom claims; validates semester,
+  calendar event, and slot-mapping payloads before publishing.
 
-## Tech Stack
+## Tech stack
 
-- React with Vite for fast builds
-- Tailwind CSS for styling
-- Vercel for hosting
-- Vanilla JavaScript for calculations
+- React 19 + Vite 7 + Tailwind 3
+- Firebase Auth + Firestore (Web SDK on the client, `firebase-admin` on the API)
+- Vercel serverless functions for the API and weekly cron
+- `simple-statistics` for the forecast, `ml-cart` for the risk classifier
 
-## Project Structure
+## Project layout
 
 ```
-vit-ap-attendance-planner/
-├── src/
-│   ├── components/
-│   │   ├── LiveClock.jsx
-│   │   ├── ThemeToggle.jsx
-│   │   ├── InfoCard.jsx
-│   │   ├── AttendanceGauge.jsx
-│   │   ├── CalendarPlanner.jsx
-│   │   ├── PlannerView.jsx
-│   │   └── DashboardView.jsx
-│   ├── data/
-│   │   ├── academicCalendar.js
-│   │   ├── slotTimings.js
-│   │   └── constants.js
-│   ├── utils/
-│   │   ├── dateUtils.js
-│   │   └── calculationUtils.js
-│   ├── App.jsx
-│   └── main.jsx
-├── package.json
-├── vite.config.js
-└── tailwind.config.js
+api/                     Vercel serverless functions
+  attendance-review.js   Weekly cron: scans users, sends review/alert emails + Telegram
+  send-alert-email.js    Manual review trigger from the Notifications screen
+  admin/                 Admin-gated validators (semester / events / slots / bootstrap)
+  lib/                   firebase-admin singleton, http helpers, email + telegram, semester loader
+public/
+  semester-data.json     Academic calendar + slot mappings (Winter 2025-26)
+src/
+  App.jsx                Top-level routing between landing / dashboard / planner / insights / admin
+  Components/            UI components (CalendarPlanner, AttendanceHeatmap, AdminScreen, ...)
+  contexts/              AuthProvider (custom-claims aware), ThemeProvider
+  hooks/                 useUserSync (Firestore), useAttendancePlanner, useSemesterData
+  utils/                 attendanceAnalytics (risk + EWMA forecast), dateUtils
+scripts/
+  smokeTest.sh           Hits every API route and asserts expected status codes
+  sendAttendanceReview.js  Local CLI mailer scaffold
+tests/                   Node --test suites (analytics + endpoint contracts)
+firestore.rules          Per-user access; server-only fields are locked
 ```
 
-## Getting Started
-
-Clone the repo and install dependencies:
+## Getting started
 
 ```bash
 git clone https://github.com/Ralblast/vit-ap-attendance-planner
 cd vit-ap-attendance-planner
 npm install
-```
-
-Run the development server:
-
-```bash
+cp .env.example .env      # fill in the Firebase keys at minimum
 npm run dev
 ```
 
-Build for production:
+The dev server runs on <http://localhost:5174>. The `/api/*` routes are only
+available when running with `vercel dev`, which mounts the serverless
+functions alongside Vite.
+
+## Environment
+
+See [`.env.example`](.env.example) for the full list. The required minimum:
+
+| Variable | Purpose |
+|---|---|
+| `VITE_FIREBASE_*` | Firebase Web SDK config (client) |
+| `FIREBASE_SERVICE_ACCOUNT` | JSON service account for `firebase-admin` (server) |
+| `CRON_SECRET` | Bearer token Vercel cron sends to `/api/attendance-review` |
+| `SMTP_HOST/USER/PASS` | Outbound email; the planner skips email channel cleanly when missing |
+| `VITE_ADMIN_EMAIL` + `ADMIN_BOOTSTRAP_PASSWORD` | First-time admin self-bootstrap (≥6 chars) |
+
+`VITE_DEV_ALLOWED_HOSTS` accepts a comma-separated host allow-list for the dev
+server (useful for ngrok / Tailscale).
+
+## Authentication and authorization
+
+- The client signs in via Firebase Auth (email + password).
+- The server verifies every protected request with `admin.auth().verifyIdToken`.
+- Admin status is granted by the `admin` custom claim, which is set when the
+  bootstrap email logs in for the first time. The `VITE_ADMIN_EMAIL` env var
+  is only a UX hint — server gates always re-check the claim.
+- Firestore rules in [`firestore.rules`](firestore.rules) prevent clients from
+  writing the `role`, `email`, or `lastEmailSentAt` fields on `users/{uid}`.
+  Deploy them with the Firebase CLI:
+
+  ```bash
+  firebase deploy --only firestore:rules
+  ```
+
+## Notifications
+
+Each user can opt into either or both channels:
+
+- **Email** — sent from `ATTENDANCE_REVIEW_FROM` (or `SMTP_USER`) to the
+  user's verified email.
+- **Telegram** — store a bot token + chat ID under
+  `users/{uid}.notificationChannels.telegram`. Create the bot with
+  [@BotFather](https://t.me/BotFather), message it once, then paste the
+  chat ID into the Notifications screen.
+
+The weekly cron (`30 15 * * 6` UTC, configured in [`vercel.json`](vercel.json))
+runs over all users in chunks of 6 and sends to whichever channels they have
+configured. Manual sends from the Notifications screen are rate-limited to
+one per 60 seconds per user.
+
+## Scripts
 
 ```bash
-npm run build
+npm run dev               # vite dev server
+npm run build             # production build
+npm run lint              # eslint
+npm run test              # node --test (analytics + endpoint contracts)
+npm run attendance:review # local smtp scaffold; sends a placeholder email
+./scripts/smokeTest.sh    # hits every API route and asserts the status code
 ```
 
-## How to Use
-
-1. Add your courses with their respective slots
-2. Enter current attendance (classes attended / total classes)
-3. View your attendance percentage and projections
-4. Check the calendar to plan which days you can skip
-5. Stay above 75% and avoid that awkward conversation with your faculty advisor
-
-## Why I Built This
-
-During my time at VIT-AP, I got tired of manually calculating whether I could skip another class without dropping below 75%. The slot system made it even more confusing because different courses have different schedules.
-
-So I built this tool to solve my own problem. Turns out 1,000+ other students had the same problem.
-
-## Lessons Learned
-
-- Handling edge cases in date calculations is harder than it looks
-- Users will always find ways to break your assumptions about "valid input"
-- A clean UI matters more than fancy features
-- Testing with real semester data caught bugs that unit tests missed
-
-## Upcoming Features:
-
-- Browser extension for auto-fetching attendance from VTOP
-- Multi-semester tracking
-- Attendance trend analysis
-- WhatsApp/email notifications when attendance drops near 75%
-
-## Contributing
-
-Found a bug or have a feature idea? Open an issue or submit a PR. This project is for students, by students.
+`smokeTest.sh` accepts `BASE_URL`, `ID_TOKEN`, and `CRON_SECRET` env vars to
+exercise authenticated paths against a deployed environment.
 
 ## Disclaimer
 
-This tool is not affiliated with VIT-AP University. Attendance data is stored locally in your browser. Always verify your official attendance on VTOP before making any decisions.
-
-Use at your own risk. I'm not responsible if you miscalculate and get debarred.
-
-## License
-
-MIT License - do whatever you want with this code, just don't blame me if things go wrong.
-
----
-
-Built with passion by a fellow VIT-AP student who had semesters with too many classes.
+Independent student project. Not affiliated with VIT-AP. Always verify any
+schedule decision against the official VIT-AP communication.

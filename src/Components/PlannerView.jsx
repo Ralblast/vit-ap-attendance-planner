@@ -56,9 +56,19 @@ const findExamCutoff = (events, matcher) => {
 };
 
 const buildProjectionHorizons = semesterData => {
-  const lastInstructionalDay = semesterData?.lastInstructionalDay || new Date();
+  const lastInstructionalDay =
+    semesterData?.lastInstructionalDay instanceof Date
+      ? semesterData.lastInstructionalDay
+      : semesterData?.lastInstructionalDay
+        ? new Date(semesterData.lastInstructionalDay)
+        : null;
   const events = semesterData?.academicCalendar || [];
   const horizons = [
+    {
+      key: 'semester',
+      label: 'Till Semester',
+      date: lastInstructionalDay,
+    },
     {
       key: 'cat1',
       label: 'Till CAT-1',
@@ -164,7 +174,9 @@ const PlannerView = ({
       snapshots,
     ]
   );
-  const canSaveSnapshot = Boolean(activeCourse?.id && Number(classesTaken) > 0);
+  const canSaveSnapshot = Boolean(
+    activeCourse?.id && Number(classesTaken) > 0 && calculationData.isValid
+  );
 
   return (
     <Motion.div
@@ -257,6 +269,41 @@ const PlannerView = ({
           </div>
         </div>
       </section>
+
+      {analytics.forecast?.ready ? (
+        <section className="grid gap-4 border-b border-border-faint pb-6 md:grid-cols-3">
+          <div>
+            <p className="eyebrow-label">Forecast (end of semester)</p>
+            <p className="mt-2 text-3xl font-semibold">{analytics.forecast.predicted}%</p>
+            <p className="mt-1 text-xs text-text-muted">
+              95% range {analytics.forecast.low}–{analytics.forecast.high}% · {analytics.forecast.sampleSize} snapshots
+            </p>
+          </div>
+          <div>
+            <p className="eyebrow-label">Smoothed current</p>
+            <p className="mt-2 text-3xl font-semibold">{analytics.forecast.smoothedCurrent}%</p>
+            <p className="mt-1 text-xs text-text-muted">EWMA of saved snapshots</p>
+          </div>
+          <div>
+            <p className="eyebrow-label">Trajectory</p>
+            <p
+              className={`mt-2 text-3xl font-semibold ${
+                analytics.trend.direction === 'improving'
+                  ? 'text-success'
+                  : analytics.trend.direction === 'declining'
+                    ? 'text-danger'
+                    : ''
+              }`}
+            >
+              {analytics.trend.direction}
+            </p>
+            <p className="mt-1 text-xs text-text-muted">
+              {analytics.forecast.slopePerDay >= 0 ? '+' : ''}
+              {analytics.forecast.slopePerDay} %/day
+            </p>
+          </div>
+        </section>
+      ) : null}
 
       <section className="grid gap-8 lg:grid-cols-[0.82fr_1.18fr]">
         <div className="space-y-6 lg:border-r lg:border-border-faint lg:pr-8">
