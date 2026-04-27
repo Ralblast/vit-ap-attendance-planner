@@ -99,7 +99,7 @@ const AddCourseModal = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[60] flex items-center justify-center bg-[rgba(28,31,27,0.72)] px-4 backdrop-blur-md"
+        className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 px-4 backdrop-blur-md"
       >
         <Motion.div
           initial={{ opacity: 0, y: 12 }}

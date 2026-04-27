@@ -3,57 +3,59 @@
 @tailwind utilities;
 
 :root {
-  --bg-base: #1c1f1b;
-  --bg-surface: #242821;
-  --bg-elevated: #2d3129;
-  --bg-subtle: #33382f;
+  /* Dark — neutral zinc base with an emerald accent. */
+  --bg-base: #09090b;
+  --bg-surface: #111113;
+  --bg-elevated: #1c1c1f;
+  --bg-subtle: #18181b;
 
-  --border-faint: #34382f;
-  --border-default: #44483e;
-  --border-strong: #626757;
+  --border-faint: #1f1f23;
+  --border-default: #2a2a2e;
+  --border-strong: #3f3f46;
 
-  --accent: #7c916f;
-  --accent-dim: #6b7f60;
-  --accent-glow: rgba(124, 145, 111, 0.16);
+  --accent: #10b981;
+  --accent-dim: #059669;
+  --accent-glow: rgba(16, 185, 129, 0.14);
 
-  --text-primary: #f2eee6;
-  --text-secondary: #c9c1b3;
-  --text-muted: #8f887c;
-  --text-inverse: #fffdf8;
+  --text-primary: #fafafa;
+  --text-secondary: #d4d4d8;
+  --text-muted: #71717a;
+  --text-inverse: #09090b;
 
-  --green: #7c916f;
-  --amber: #b08a55;
-  --red: #a35f58;
-  --green-dim: rgba(124, 145, 111, 0.14);
-  --amber-dim: rgba(176, 138, 85, 0.14);
-  --red-dim: rgba(163, 95, 88, 0.14);
+  --green: #34d399;
+  --amber: #fbbf24;
+  --red: #f87171;
+  --green-dim: rgba(52, 211, 153, 0.13);
+  --amber-dim: rgba(251, 191, 36, 0.13);
+  --red-dim: rgba(248, 113, 113, 0.13);
 }
 
 html[data-theme='light'] {
-  --bg-base: #f4f0e7;
-  --bg-surface: #fffcf5;
-  --bg-elevated: #ece6d8;
-  --bg-subtle: #e4ddce;
+  /* Light — paper-white with a deeper emerald for contrast. */
+  --bg-base: #fafaf9;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f4f4f5;
+  --bg-subtle: #ececef;
 
-  --border-faint: #e2dacb;
-  --border-default: #d0c6b5;
-  --border-strong: #aea28d;
+  --border-faint: #e7e7e9;
+  --border-default: #d4d4d8;
+  --border-strong: #a1a1aa;
 
-  --accent: #536b4e;
-  --accent-dim: #43593f;
-  --accent-glow: rgba(83, 107, 78, 0.13);
+  --accent: #059669;
+  --accent-dim: #047857;
+  --accent-glow: rgba(5, 150, 105, 0.10);
 
-  --text-primary: #252720;
-  --text-secondary: #5f6259;
-  --text-muted: #918a7d;
-  --text-inverse: #fffdf8;
+  --text-primary: #18181b;
+  --text-secondary: #3f3f46;
+  --text-muted: #71717a;
+  --text-inverse: #fafafa;
 
-  --green: #536b4e;
-  --amber: #946d3b;
-  --red: #8f554f;
-  --green-dim: rgba(83, 107, 78, 0.12);
-  --amber-dim: rgba(148, 109, 59, 0.13);
-  --red-dim: rgba(143, 85, 79, 0.12);
+  --green: #059669;
+  --amber: #b45309;
+  --red: #b91c1c;
+  --green-dim: rgba(5, 150, 105, 0.10);
+  --amber-dim: rgba(180, 83, 9, 0.10);
+  --red-dim: rgba(185, 28, 28, 0.10);
 }
 
 * {
@@ -75,13 +77,22 @@ html[data-theme='light'] {
 
 body {
   min-height: 100%;
-  background:
-    radial-gradient(circle at top left, var(--accent-glow), transparent 32rem),
-    linear-gradient(135deg, var(--bg-base), var(--bg-base));
+  background: var(--bg-base);
   color: var(--text-primary);
   font-family: Manrope, system-ui, -apple-system, sans-serif;
   line-height: 1.6;
   text-rendering: optimizeLegibility;
+}
+
+/* Subtle accent glow in the corner — soft enough that the theme swap
+   doesn't visibly repaint it. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at top left, var(--accent-glow), transparent 40rem);
+  z-index: -1;
 }
 
 #root {
@@ -95,7 +106,7 @@ h4,
 h5,
 h6 {
   color: var(--text-primary);
-  font-family: "Space Grotesk", Manrope, system-ui, sans-serif;
+  font-family: 'Space Grotesk', Manrope, system-ui, sans-serif;
   font-weight: 600;
   letter-spacing: -0.02em;
 }
@@ -105,6 +116,7 @@ input,
 select,
 textarea {
   font: inherit;
+  color: inherit;
 }
 
 a {
@@ -139,33 +151,9 @@ a {
   background: var(--border-strong);
 }
 
-/* Fallback path only (Firefox etc.): kill transitions during the swap so
-   no per-element fade cascades into a flicker. Does NOT touch animations,
-   so the View Transitions API crossfade pseudo-elements stay alive. */
-html.theme-swap,
-html.theme-swap *,
-html.theme-swap *::before,
-html.theme-swap *::after {
-  transition: none !important;
-}
-
-/* Tune the View Transitions crossfade. */
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 220ms;
-  animation-timing-function: ease;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
-    animation: none;
-  }
-}
-
 @layer components {
   .app-card {
-    @apply border border-border-default bg-surface transition-[transform,border-color,box-shadow,background-color] duration-150 ease-out;
+    @apply border border-border-default bg-surface;
   }
 
   .app-card-hover {
@@ -173,15 +161,15 @@ html.theme-swap *::after {
   }
 
   .ghost-button {
-    @apply inline-flex items-center justify-center gap-2 border border-border-default bg-transparent px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:border-border-strong hover:text-text-primary;
+    @apply inline-flex items-center justify-center gap-2 border border-border-default bg-transparent px-3 py-2 text-sm font-medium text-text-secondary hover:border-border-strong hover:text-text-primary;
   }
 
   .primary-button {
-    @apply inline-flex items-center justify-center gap-2 bg-accent px-4 py-2 text-sm font-semibold text-inverse transition-colors hover:bg-accent-dim;
+    @apply inline-flex items-center justify-center gap-2 bg-accent px-4 py-2 text-sm font-semibold text-inverse hover:bg-accent-dim;
   }
 
   .field-input {
-    @apply w-full border border-border-default bg-subtle px-3.5 py-2.5 text-text-primary placeholder:text-text-muted outline-none transition-[border-color,box-shadow,background-color];
+    @apply w-full border border-border-default bg-subtle px-3.5 py-2.5 text-text-primary placeholder:text-text-muted outline-none;
   }
 
   .field-input:focus {

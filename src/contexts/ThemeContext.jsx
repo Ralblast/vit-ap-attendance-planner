@@ -18,33 +18,13 @@ const readInitialTheme = () => {
   }
 };
 
-const writeRootTheme = nextTheme => {
-  const root = document.documentElement;
-  root.dataset.theme = nextTheme;
-  root.style.colorScheme = nextTheme;
-};
-
 const applyTheme = nextTheme => {
   if (typeof document === 'undefined') {
     return;
   }
-
-  // Browsers with View Transitions get a smooth, GPU-driven crossfade.
-  if (typeof document.startViewTransition === 'function') {
-    document.startViewTransition(() => writeRootTheme(nextTheme));
-    return;
-  }
-
-  // Fallback: kill per-element CSS transitions for one frame so the swap
-  // is instant (no cascading per-element fade that looks like a flicker).
   const root = document.documentElement;
-  root.classList.add('theme-swap');
-  writeRootTheme(nextTheme);
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      root.classList.remove('theme-swap');
-    });
-  });
+  root.dataset.theme = nextTheme;
+  root.style.colorScheme = nextTheme;
 };
 
 export const useTheme = () => {
