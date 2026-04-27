@@ -18,13 +18,36 @@ const readInitialTheme = () => {
   }
 };
 
+// Battle-tested pattern from next-themes: inject a stylesheet that kills
+// every CSS *transition* (animations stay alive so framer-motion still
+// works), force a synchronous reflow so the browser commits that style
+// BEFORE the data-theme change paints, swap the attribute, then remove
+// the stylesheet on the next macrotask.
 const applyTheme = nextTheme => {
   if (typeof document === 'undefined') {
     return;
   }
+
+  const style = document.createElement('style');
+  style.appendChild(
+    document.createTextNode(
+      '*,*::before,*::after{transition:none !important;}'
+    )
+  );
+  document.head.appendChild(style);
+
   const root = document.documentElement;
   root.dataset.theme = nextTheme;
   root.style.colorScheme = nextTheme;
+
+  // Force the browser to commit the disabled-transition styles synchronously
+  // before the next paint. Reading a layout property triggers a reflow.
+  const _force = window.getComputedStyle(document.body).opacity;
+  void _force;
+
+  setTimeout(() => {
+    style.remove();
+  }, 0);
 };
 
 export const useTheme = () => {
