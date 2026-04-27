@@ -139,18 +139,21 @@ a {
   background: var(--border-strong);
 }
 
+/* Fallback path only (Firefox etc.): kill transitions during the swap so
+   no per-element fade cascades into a flicker. Does NOT touch animations,
+   so the View Transitions API crossfade pseudo-elements stay alive. */
 html.theme-swap,
 html.theme-swap *,
 html.theme-swap *::before,
 html.theme-swap *::after {
   transition: none !important;
-  animation: none !important;
 }
 
+/* Tune the View Transitions crossfade. */
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation-duration: 220ms;
-  animation-timing-function: ease-out;
+  animation-timing-function: ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
