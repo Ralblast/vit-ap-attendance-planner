@@ -116,11 +116,16 @@ const buildDayMatrix = ({ courses, semesterData, today }) => {
 
 const AttendanceHeatmap = ({ courses = [], semesterData }) => {
   const [hoverCell, setHoverCell] = useState(null);
+  // Re-key "today" on every render via the date string. useMemo([]) would
+  // freeze the value at first mount and leave a long-lived tab showing
+  // stale "upcoming" cells across a day boundary.
+  const todayDateString = new Date().toDateString();
   const today = useMemo(() => {
     const date = new Date();
     date.setHours(0, 0, 0, 0);
     return date;
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todayDateString]);
 
   const matrix = useMemo(
     () => buildDayMatrix({ courses, semesterData, today }),

@@ -178,11 +178,17 @@ const SlotHeatmap = ({
   compact = false,
   showLegend = true,
 }) => {
+  // Re-key "today" on every render via the date string. useMemo([]) would
+  // freeze it at first mount, leaving a long-lived tab showing "upcoming"
+  // cells long after the semester is over. The matrix builder below is
+  // memoized off `today`, so we only rebuild when the day actually changes.
+  const todayDateString = new Date().toDateString();
   const today = useMemo(() => {
     const date = new Date();
     date.setHours(0, 0, 0, 0);
     return date;
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todayDateString]);
 
   const matrix = useMemo(
     () => buildMatrix({ slotDays, course, semesterData, today }),

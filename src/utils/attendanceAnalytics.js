@@ -79,7 +79,11 @@ export const getRemainingClassDates = (
   }
 
   const blockedDates = buildBlockedDateSet(academicCalendar);
-  const currentDate = parseDate(fromDate) || new Date();
+  // Clone so the loop's setDate/setHours never mutate the caller's Date.
+  // AttendanceHeatmap reuses its `start` Date for inSemester checks AND
+  // passes it here per course — without this clone the first call shifts
+  // `start` past the end of the semester and every later check breaks.
+  const currentDate = new Date((parseDate(fromDate) || new Date()).getTime());
   const classDates = [];
 
   currentDate.setHours(0, 0, 0, 0);
