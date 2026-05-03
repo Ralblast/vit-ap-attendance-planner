@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { motion as Motion } from 'framer-motion';
 import { Plus, Trash2 } from 'lucide-react';
 
+import ExamHorizonPanel from './ExamHorizonPanel.jsx';
 import SlotHeatmap from './SlotHeatmap.jsx';
 import { buildDashboardSummary } from '../utils/attendanceAnalytics.js';
 
@@ -64,6 +65,15 @@ export default function DashboardScreen({
 
   return (
     <div className="space-y-8">
+      {hasCourses ? (
+        <ExamHorizonPanel
+          courses={courses}
+          snapshotsByCourse={snapshotsByCourse}
+          semesterData={semesterData}
+          onOpenCourse={onOpenCourse}
+        />
+      ) : null}
+
       <section className="grid gap-6 border-b border-border-faint pb-8 lg:grid-cols-[1.2fr_0.8fr]">
         <div>
           <p className="eyebrow-label">Command Dashboard</p>

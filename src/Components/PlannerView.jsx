@@ -6,6 +6,7 @@ import CalendarPlanner from './CalendarPlanner.jsx';
 import SlotHeatmap from './SlotHeatmap.jsx';
 import { calculateAttendanceAnalytics } from '../utils/attendanceAnalytics.js';
 import { formatDate } from '../utils/dateUtils.js';
+import { buildProjectionHorizons } from '../utils/projectionHorizons.js';
 
 const riskTone = {
   Safe: 'text-success',
@@ -15,88 +16,12 @@ const riskTone = {
 
 const dateToKey = date => formatDate(date);
 
-const parseEventDate = event => {
-  const value = event?.startDate || event?.date;
-  if (!value) {
-    return null;
-  }
-
-  const date = new Date(String(value).includes('T') ? value : `${value}T00:00:00`);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
-
-const parseEnvDate = value => {
-  if (!value) {
-    return null;
-  }
-
-  const date = new Date(`${value}T00:00:00`);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
-
-const dayBefore = date => {
-  const nextDate = new Date(date);
-  nextDate.setDate(nextDate.getDate() - 1);
-  return nextDate;
-};
-
-const startOfToday = () => {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  return date;
-};
-
-const findExamCutoff = (events, matcher) => {
-  const matchingDates = (events || [])
-    .filter(event => matcher(String(event.name || '').toLowerCase()))
-    .map(parseEventDate)
-    .filter(Boolean)
-    .sort((a, b) => a - b);
-
-  return matchingDates[0] ? dayBefore(matchingDates[0]) : null;
-};
-
-const buildProjectionHorizons = semesterData => {
-  const lastInstructionalDay =
-    semesterData?.lastInstructionalDay instanceof Date
-      ? semesterData.lastInstructionalDay
-      : semesterData?.lastInstructionalDay
-        ? new Date(semesterData.lastInstructionalDay)
-        : null;
-  const events = semesterData?.academicCalendar || [];
-  const horizons = [
-    {
-      key: 'cat1',
-      label: 'Till CAT-1',
-      date:
-        parseEnvDate(import.meta.env.VITE_CAT1_START_DATE) ||
-        findExamCutoff(events, name => name.includes('cat-1') || name.includes('cat 1')),
-    },
-    {
-      key: 'cat2',
-      label: 'Till CAT-2',
-      date:
-        parseEnvDate(import.meta.env.VITE_CAT2_START_DATE) ||
-        findExamCutoff(events, name => name.includes('cat-2') || name.includes('cat 2')),
-    },
-    {
-      key: 'fat',
-      label: 'Till FAT',
-      date:
-        parseEnvDate(import.meta.env.VITE_FAT_START_DATE) ||
-        findExamCutoff(events, name => name.includes('fat')) ||
-        lastInstructionalDay,
-    },
-  ];
-
-  const today = startOfToday();
-
-  return horizons
-    .filter(horizon => horizon.date)
-    .map(horizon => ({
-      ...horizon,
-      isPast: horizon.key !== 'fat' && horizon.date < today,
-    }));
+// PlannerView's horizon toggle uses "Till X" prefixes; the shared util
+// returns bare labels ("CAT-1") so it can render naturally in headlines too.
+const HORIZON_BUTTON_LABELS = {
+  cat1: 'Till CAT-1',
+  cat2: 'Till CAT-2',
+  fat: 'Till FAT',
 };
 
 const formatPlannedSkipDate = dateString => {
@@ -299,9 +224,13 @@ const PlannerView = ({
                     ? 'border-accent bg-accent text-inverse'
                     : 'border-border-default text-text-muted hover:border-border-strong hover:text-text-primary'
                 }`}
-                title={horizon.isPast ? `${horizon.label} cutoff has passed` : horizon.label}
+                title={
+                  horizon.isPast
+                    ? `${HORIZON_BUTTON_LABELS[horizon.key] || horizon.label} cutoff has passed`
+                    : HORIZON_BUTTON_LABELS[horizon.key] || horizon.label
+                }
               >
-                {horizon.label}
+                {HORIZON_BUTTON_LABELS[horizon.key] || horizon.label}
               </button>
             ))}
           </div>
