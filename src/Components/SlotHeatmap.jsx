@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 
 import { formatDate } from '../utils/dateUtils.js';
 
@@ -196,6 +196,11 @@ const SlotHeatmap = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [todayDateString]);
 
+  // Hovered cell drives a custom in-app tooltip beneath the heatmap.
+  // Native `title=""` tooltips hang for ~500ms before showing; React state
+  // makes the readout instant.
+  const [hoverTitle, setHoverTitle] = useState(null);
+
   const matrix = useMemo(
     () => buildMatrix({ slotDays, course, semesterData, today }),
     [course, semesterData, slotDays, today]
@@ -223,7 +228,12 @@ const SlotHeatmap = ({
           <p className="font-mono text-sm font-medium text-accent">{slotLabel}</p>
           <p className="text-[11px] text-text-muted">{formatDayList(slotDays)}</p>
         </div>
-        <p className="text-[11px] text-text-muted">{stats}</p>
+        <p
+          className="font-mono text-[11px] text-text-secondary"
+          aria-live="polite"
+        >
+          {hoverTitle || stats}
+        </p>
       </div>
 
       <div className="overflow-x-auto pb-1">
@@ -266,7 +276,8 @@ const SlotHeatmap = ({
                     return (
                       <div
                         key={cell.key}
-                        title={cell.title}
+                        onMouseEnter={() => setHoverTitle(cell.title)}
+                        onMouseLeave={() => setHoverTitle(null)}
                         style={{
                           width: cellSize,
                           height: cellSize,

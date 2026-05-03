@@ -99,6 +99,63 @@ const buildProjectionHorizons = semesterData => {
     }));
 };
 
+const formatPlannedSkipDate = dateString => {
+  const date = new Date(`${dateString}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return dateString;
+  return date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+};
+
+const PlannedSkipPill = ({ skippedDates }) => {
+  const [open, setOpen] = useState(false);
+  const sorted = useMemo(() => {
+    const list = Array.isArray(skippedDates) ? skippedDates : [];
+    return list.slice().sort();
+  }, [skippedDates]);
+  const count = sorted.length;
+
+  if (count === 0) {
+    return <p className="text-sm text-text-muted">No planned skips</p>;
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(value => !value)}
+        aria-expanded={open}
+        className="inline-flex items-center gap-1.5 rounded border border-border-faint bg-elevated px-2.5 py-1 text-sm text-text-muted transition-colors hover:border-border-strong hover:text-text-primary"
+      >
+        <span className="font-mono">{count}</span> planned
+        <span className="text-[9px] uppercase tracking-wider">{open ? '▲' : '▼'}</span>
+      </button>
+      {open ? (
+        <div
+          className="absolute right-0 top-full z-10 mt-2 w-64 rounded border border-border-strong bg-surface p-3 shadow-lg"
+          role="dialog"
+        >
+          <p className="eyebrow-label mb-2">Planned skip dates</p>
+          <ul className="space-y-1">
+            {sorted.map(dateString => (
+              <li
+                key={dateString}
+                className="flex items-baseline justify-between gap-2 font-mono text-xs text-text-secondary"
+              >
+                <span>{formatPlannedSkipDate(dateString)}</span>
+                <span className="text-[10px] text-text-muted">{dateString}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
 const PlannerView = ({
   selectedSlot,
   handleStartOver,
@@ -400,7 +457,7 @@ const PlannerView = ({
               <p className="eyebrow-label">Skip Calendar</p>
               <h3 className="mt-1 text-2xl font-semibold">Plan future absences</h3>
             </div>
-            <p className="text-sm text-text-muted">{analytics.plannedSkipCount} planned</p>
+            <PlannedSkipPill skippedDates={skippedDates} />
           </div>
 
           <CalendarPlanner
