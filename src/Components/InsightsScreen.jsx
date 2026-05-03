@@ -227,15 +227,19 @@ export default function InsightsScreen({ courses, semesterData, snapshots }) {
       <section className="space-y-4 border-t border-border-faint pt-8">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="eyebrow-label">Semester Heatmap</p>
-            <h3 className="mt-1 text-2xl font-semibold">Class days at a glance</h3>
+            <p className="eyebrow-label">Semester Trajectory</p>
+            <h3 className="mt-1 text-2xl font-semibold">Attendance week by week</h3>
             <p className="mt-1 text-sm text-text-muted">
-              Each square is one weekday across the semester. Planned skips and class days are
-              highlighted across all your tracked courses.
+              Each row is a course; each cell is the attendance % at the end of that week,
+              taken from the saved snapshots. Hover any cell to see the exact reading.
             </p>
           </div>
         </div>
-        <AttendanceHeatmap courses={courses || []} semesterData={semesterData} />
+        <AttendanceHeatmap
+          courses={courses || []}
+          snapshots={snapshots || []}
+          semesterData={semesterData}
+        />
       </section>
     </div>
   );

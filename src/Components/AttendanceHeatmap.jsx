@@ -1,23 +1,28 @@
 import React, { useMemo, useState } from 'react';
 
-import { formatDate } from '../utils/dateUtils.js';
-import { getRemainingClassDates } from '../utils/attendanceAnalytics.js';
-
 const DAY_MS = 24 * 60 * 60 * 1000;
-const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const WEEK_MS = 7 * DAY_MS;
 
-const STATUS_STYLES = {
-  attended: { bg: 'var(--green-dim)', border: 'var(--accent)', label: 'Attended' },
-  skipped: { bg: 'var(--red-dim)', border: 'var(--red)', label: 'Missed' },
-  planned: { bg: 'var(--amber-dim)', border: 'var(--amber)', label: 'Planned skip' },
-  upcoming: { bg: 'var(--bg-elevated)', border: 'var(--border-default)', label: 'Upcoming class' },
-  blocked: { bg: 'transparent', border: 'var(--border-faint)', label: 'No class / holiday' },
+// Attendance % buckets used to colour each cell. Picked to align with the
+// 75% minimum-attendance threshold the rest of the app uses: anything above
+// is comfortable, 70-79 is the warning band, 60-69 is critical, < 60 is a
+// fail. Same buckets are surfaced in the legend.
+const BUCKETS = [
+  { label: '≥ 80%', min: 80, max: 101, fill: 'var(--green)', dim: 'var(--green-dim)' },
+  { label: '70–79%', min: 70, max: 80, fill: 'var(--amber)', dim: 'var(--amber-dim)' },
+  { label: '60–69%', min: 60, max: 70, fill: '#f59e0b', dim: 'rgba(245, 158, 11, 0.18)' },
+  { label: '< 60%', min: 0, max: 60, fill: 'var(--red)', dim: 'var(--red-dim)' },
+];
+
+const bucketFor = pct => {
+  if (!Number.isFinite(pct)) return null;
+  return BUCKETS.find(bucket => pct >= bucket.min && pct < bucket.max) || BUCKETS[BUCKETS.length - 1];
 };
 
 const semesterStartFromCalendar = academicCalendar => {
   const events = Array.isArray(academicCalendar) ? academicCalendar : [];
-  const commencement = events.find(event =>
-    typeof event.name === 'string' && /commencement/i.test(event.name)
+  const commencement = events.find(
+    event => typeof event.name === 'string' && /commencement/i.test(event.name)
   );
   if (commencement?.date) {
     return new Date(`${commencement.date}T00:00:00`);
@@ -34,7 +39,13 @@ const startOfWeek = date => {
   return next;
 };
 
-const buildDayMatrix = ({ courses, semesterData, today }) => {
+// Reduce each course's chronological snapshots to one reading per ISO week:
+// the latest snapshot whose week-start matches that column. Snapshots can
+// be irregular (one per week is typical, but the schema permits multiple),
+// so we pick the most recent reading inside each week as the "end-of-week"
+// value — matches what a student would see if they opened the dashboard
+// at the end of that week.
+const buildMatrix = ({ courses, snapshots, semesterData }) => {
   const start = semesterStartFromCalendar(semesterData?.academicCalendar);
   const end =
     semesterData?.lastInstructionalDay instanceof Date
@@ -43,191 +54,246 @@ const buildDayMatrix = ({ courses, semesterData, today }) => {
         ? new Date(semesterData.lastInstructionalDay)
         : null;
 
-  if (!start || !end) {
+  if (!start || !end || !Array.isArray(courses) || courses.length === 0) {
     return null;
   }
 
   const firstColumn = startOfWeek(start);
   const lastColumn = startOfWeek(end);
-  const totalWeeks = Math.max(1, Math.round((lastColumn - firstColumn) / (7 * DAY_MS)) + 1);
+  const totalWeeks = Math.max(1, Math.round((lastColumn - firstColumn) / WEEK_MS) + 1);
 
-  const allClassDays = new Set();
-  const skippedSet = new Set();
-  const plannedSet = new Set();
-
-  courses.forEach(course => {
-    const slotDays = Array.isArray(course.slotDays) ? course.slotDays : [];
-    if (slotDays.length === 0) {
-      return;
-    }
-    const dates = getRemainingClassDates(
-      slotDays,
-      semesterData?.academicCalendar,
-      semesterData?.lastInstructionalDay,
-      start
-    );
-    dates.forEach(date => allClassDays.add(date));
-
-    (course.skippedDates || []).forEach(date => plannedSet.add(date));
-  });
-
-  // Heuristic: distribute "missed so far" evenly across past class days.
-  // We do not have per-day attendance, only totals — so we shade past class
-  // days as "attended" by default and let the planned/missed totals show
-  // up via per-course cell counts in the legend.
-  const totalsByCourse = courses.map(course => ({
-    name: course.courseName || course.slotLabel,
-    missed: Math.max(0, Number(course.classesTaken || 0) - Number(course.classesAttended || 0)),
-    planned: Array.isArray(course.skippedDates) ? course.skippedDates.length : 0,
-  }));
-
-  const todayKey = formatDate(today);
-  const cells = [];
-
+  const monthLabels = [];
   for (let week = 0; week < totalWeeks; week += 1) {
-    const column = [];
-    for (let day = 0; day < 6; day += 1) {
-      const cellDate = new Date(firstColumn);
-      cellDate.setDate(cellDate.getDate() + week * 7 + day);
-      const cellKey = formatDate(cellDate);
-      const inSemester = cellDate >= start && cellDate <= end;
-      const hasClass = inSemester && allClassDays.has(cellKey);
-
-      let status = 'blocked';
-      if (hasClass) {
-        if (plannedSet.has(cellKey)) {
-          status = 'planned';
-        } else if (cellKey > todayKey) {
-          status = 'upcoming';
-        } else if (skippedSet.has(cellKey)) {
-          status = 'skipped';
-        } else {
-          status = 'attended';
-        }
-      }
-
-      column.push({ date: cellDate, key: cellKey, status, hasClass });
+    const date = new Date(firstColumn);
+    date.setDate(date.getDate() + week * 7);
+    if (week === 0 || date.getDate() <= 7) {
+      monthLabels.push(date.toLocaleString('en-US', { month: 'short' }));
+    } else {
+      monthLabels.push('');
     }
-    cells.push(column);
   }
 
-  return { cells, totalsByCourse, totalWeeks, firstColumn };
+  const snapshotsByCourse = new Map();
+  (Array.isArray(snapshots) ? snapshots : []).forEach(snapshot => {
+    const courseId = snapshot?.courseId;
+    if (!courseId) return;
+    const list = snapshotsByCourse.get(courseId) || [];
+    list.push(snapshot);
+    snapshotsByCourse.set(courseId, list);
+  });
+
+  const rows = courses.map(course => {
+    const courseSnapshots = (snapshotsByCourse.get(course.id) || [])
+      .map(snapshot => ({
+        time: new Date(snapshot.createdAt).getTime(),
+        pct: Number(snapshot.attendancePercentage),
+      }))
+      .filter(entry => Number.isFinite(entry.time) && Number.isFinite(entry.pct))
+      .sort((a, b) => a.time - b.time);
+
+    const weeklyValues = new Array(totalWeeks).fill(null);
+    courseSnapshots.forEach(entry => {
+      const weekIndex = Math.floor((entry.time - firstColumn.getTime()) / WEEK_MS);
+      if (weekIndex < 0 || weekIndex >= totalWeeks) return;
+      // Keep the latest reading inside the week (snapshots are sorted, so
+      // a later iteration naturally overwrites an earlier same-week one).
+      weeklyValues[weekIndex] = entry.pct;
+    });
+
+    // Forward-fill: between snapshots the attendance % doesn't change, so
+    // an empty cell after the first reading should inherit the previous
+    // value rather than read as "no data". Cells before the first reading
+    // stay null (course wasn't being tracked yet).
+    let lastSeen = null;
+    const filledValues = weeklyValues.map(value => {
+      if (value !== null) {
+        lastSeen = value;
+        return value;
+      }
+      return lastSeen;
+    });
+
+    const finalPct = filledValues[filledValues.length - 1];
+    const firstPct = filledValues.find(value => value !== null);
+    const delta =
+      Number.isFinite(finalPct) && Number.isFinite(firstPct) ? finalPct - firstPct : 0;
+
+    return {
+      course,
+      values: filledValues,
+      finalPct,
+      delta,
+    };
+  });
+
+  return { rows, monthLabels, totalWeeks };
 };
 
-const AttendanceHeatmap = ({ courses = [], semesterData }) => {
-  const [hoverCell, setHoverCell] = useState(null);
-  // Re-key "today" on every render via the date string. useMemo([]) would
-  // freeze the value at first mount and leave a long-lived tab showing
-  // stale "upcoming" cells across a day boundary.
-  const todayDateString = new Date().toDateString();
-  const today = useMemo(() => {
-    const date = new Date();
-    date.setHours(0, 0, 0, 0);
-    return date;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [todayDateString]);
+const formatDelta = delta => {
+  if (!Number.isFinite(delta) || Math.abs(delta) < 0.5) return '±0';
+  const sign = delta > 0 ? '+' : '−';
+  return `${sign}${Math.abs(delta).toFixed(1)}`;
+};
+
+const AttendanceHeatmap = ({ courses = [], snapshots = [], semesterData }) => {
+  const [hover, setHover] = useState(null);
 
   const matrix = useMemo(
-    () => buildDayMatrix({ courses, semesterData, today }),
-    [courses, semesterData, today]
+    () => buildMatrix({ courses, snapshots, semesterData }),
+    [courses, snapshots, semesterData]
   );
 
   if (!matrix) {
     return (
       <p className="text-sm text-text-muted">
-        Heatmap will appear once the semester calendar is available.
+        Heatmap will appear once the semester calendar and at least one course are available.
       </p>
     );
   }
 
-  const monthLabels = matrix.cells.map((_, weekIndex) => {
-    const date = new Date(matrix.firstColumn);
-    date.setDate(date.getDate() + weekIndex * 7);
-    if (date.getDate() <= 7 || weekIndex === 0) {
-      return date.toLocaleString('en-US', { month: 'short' });
-    }
-    return '';
-  });
+  const cellSize = 14;
+  const cellGap = 3;
 
   return (
     <div className="space-y-4">
-      <div className="overflow-x-auto">
-        <div className="inline-flex min-w-full flex-col gap-1">
-          <div className="flex items-end gap-[3px] pl-8">
-            {monthLabels.map((label, weekIndex) => (
+      <div className="overflow-x-auto pb-1">
+        <div className="inline-flex flex-col">
+          <div
+            className="flex items-end"
+            style={{ gap: `${cellGap}px`, paddingLeft: 200 }}
+          >
+            {matrix.monthLabels.map((label, weekIndex) => (
               <div
                 key={weekIndex}
-                className="w-[14px] text-[10px] uppercase tracking-wider text-text-muted"
+                style={{ width: cellSize }}
+                className="text-[9px] uppercase tracking-wider text-text-muted"
               >
                 {label}
               </div>
             ))}
           </div>
-          <div className="flex">
-            <div className="mr-2 flex flex-col justify-around py-[2px] text-[10px] text-text-muted">
-              {WEEKDAY_LABELS.map(label => (
-                <span key={label} className="leading-[14px]">
-                  {label[0]}
-                </span>
-              ))}
-            </div>
-            <div className="flex gap-[3px]">
-              {matrix.cells.map((column, weekIndex) => (
-                <div key={weekIndex} className="flex flex-col gap-[3px]">
-                  {column.map(cell => {
-                    const style = STATUS_STYLES[cell.status];
+
+          <div className="mt-1 flex flex-col" style={{ gap: `${cellGap}px` }}>
+            {matrix.rows.map(row => {
+              const finalBucket = bucketFor(row.finalPct);
+              const trendColor =
+                row.delta > 0.5
+                  ? 'var(--green)'
+                  : row.delta < -0.5
+                    ? 'var(--red)'
+                    : 'var(--text-muted)';
+              return (
+                <div
+                  key={row.course.id}
+                  className="flex items-center"
+                  style={{ gap: `${cellGap}px` }}
+                >
+                  <div
+                    className="flex shrink-0 items-center justify-between pr-2"
+                    style={{ width: 200 }}
+                  >
+                    <span className="truncate text-[11px] font-medium text-text-secondary">
+                      {row.course.courseName || row.course.slotLabel}
+                    </span>
+                    <span
+                      className="ml-2 shrink-0 font-mono text-[10px]"
+                      style={{ color: trendColor }}
+                      title={`Net change across the semester: ${formatDelta(row.delta)}%`}
+                    >
+                      {formatDelta(row.delta)}%
+                    </span>
+                  </div>
+
+                  {row.values.map((value, weekIndex) => {
+                    const bucket = bucketFor(value);
+                    const isEmpty = value === null;
+                    const isHover =
+                      hover &&
+                      hover.courseId === row.course.id &&
+                      hover.weekIndex === weekIndex;
                     return (
                       <button
-                        key={cell.key}
+                        key={weekIndex}
                         type="button"
-                        onMouseEnter={() => setHoverCell(cell)}
-                        onMouseLeave={() => setHoverCell(null)}
-                        onFocus={() => setHoverCell(cell)}
-                        onBlur={() => setHoverCell(null)}
-                        aria-label={`${cell.key} ${style.label}`}
-                        className="h-[14px] w-[14px] border transition-transform hover:scale-110"
-                        style={{ backgroundColor: style.bg, borderColor: style.border }}
+                        onMouseEnter={() =>
+                          setHover({ courseId: row.course.id, weekIndex, value })
+                        }
+                        onMouseLeave={() => setHover(null)}
+                        onFocus={() =>
+                          setHover({ courseId: row.course.id, weekIndex, value })
+                        }
+                        onBlur={() => setHover(null)}
+                        aria-label={
+                          isEmpty
+                            ? `${row.course.courseName} week ${weekIndex + 1}: no reading`
+                            : `${row.course.courseName} week ${weekIndex + 1}: ${value.toFixed(1)}%`
+                        }
+                        style={{
+                          width: cellSize,
+                          height: cellSize,
+                          backgroundColor: isEmpty
+                            ? 'transparent'
+                            : bucket?.fill || 'var(--bg-elevated)',
+                          borderRadius: 2,
+                          border: isEmpty
+                            ? '1px solid var(--border-faint)'
+                            : `1px solid ${bucket?.fill || 'var(--border-default)'}`,
+                          opacity: isHover ? 0.85 : 1,
+                          cursor: 'pointer',
+                          transition: 'opacity 0.1s',
+                        }}
                       />
                     );
                   })}
+
+                  <span
+                    className="ml-2 shrink-0 font-mono text-[11px] text-text-secondary"
+                    style={{ minWidth: 44, textAlign: 'right' }}
+                  >
+                    {Number.isFinite(row.finalPct) ? `${row.finalPct.toFixed(1)}%` : '—'}
+                  </span>
+                  <span
+                    className="ml-1 inline-block h-2 w-2 shrink-0"
+                    style={{
+                      backgroundColor: finalBucket?.fill || 'transparent',
+                      borderRadius: '50%',
+                    }}
+                  />
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] text-text-muted">
-        {Object.entries(STATUS_STYLES).map(([key, style]) => (
-          <div key={key} className="flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border-faint pt-3 text-[11px] text-text-muted">
+        <span className="font-mono uppercase tracking-wider text-text-muted">Attendance</span>
+        {BUCKETS.map(bucket => (
+          <div key={bucket.label} className="flex items-center gap-1.5">
             <span
-              className="inline-block h-2.5 w-2.5 border"
-              style={{ backgroundColor: style.bg, borderColor: style.border }}
+              className="inline-block h-2.5 w-2.5"
+              style={{ backgroundColor: bucket.fill, borderRadius: 2 }}
             />
-            {style.label}
+            {bucket.label}
           </div>
         ))}
-        {hoverCell ? (
+        <div className="flex items-center gap-1.5">
+          <span
+            className="inline-block h-2.5 w-2.5"
+            style={{
+              backgroundColor: 'transparent',
+              border: '1px solid var(--border-faint)',
+              borderRadius: 2,
+            }}
+          />
+          No reading
+        </div>
+        {hover && Number.isFinite(hover.value) ? (
           <span className="ml-auto font-mono text-text-secondary">
-            {hoverCell.key} · {STATUS_STYLES[hoverCell.status].label}
+            Week {hover.weekIndex + 1} · {hover.value.toFixed(1)}%
           </span>
         ) : null}
       </div>
-
-      {matrix.totalsByCourse.length > 0 ? (
-        <div className="grid gap-2 border-t border-border-faint pt-3 sm:grid-cols-2 lg:grid-cols-3">
-          {matrix.totalsByCourse.map(item => (
-            <div key={item.name} className="flex items-baseline justify-between text-xs text-text-muted">
-              <span className="truncate text-text-secondary">{item.name}</span>
-              <span className="ml-3 whitespace-nowrap">
-                <span className="text-danger">{item.missed} missed</span>
-                <span className="mx-1.5">·</span>
-                <span className="text-warning">{item.planned} planned</span>
-              </span>
-            </div>
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 };
