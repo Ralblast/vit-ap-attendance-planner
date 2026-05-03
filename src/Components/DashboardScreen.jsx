@@ -6,18 +6,6 @@ import ExamHorizonPanel from './ExamHorizonPanel.jsx';
 import SlotHeatmap from './SlotHeatmap.jsx';
 import { buildDashboardSummary } from '../utils/attendanceAnalytics.js';
 
-const getRiskClassName = label => {
-  if (label === 'Critical') {
-    return 'text-danger';
-  }
-
-  if (label === 'Warning') {
-    return 'text-warning';
-  }
-
-  return 'text-success';
-};
-
 const getSemesterProgress = semesterData => {
   const calendar = semesterData?.academicCalendar || [];
   const commencement = calendar.find(
@@ -108,21 +96,18 @@ export default function DashboardScreen({
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
-        <div className="space-y-5 lg:border-r lg:border-border-faint lg:pr-6">
-          <div>
-            <p className="eyebrow-label">Highest Risk</p>
-            <p className="mt-2 text-2xl font-semibold text-text-primary">
-              {highestRisk?.course?.courseName || highestRisk?.course?.slotLabel || 'No course data'}
-            </p>
-            <p className="mt-2 text-sm text-text-muted">
-              {highestRisk
-                ? highestRisk.analytics.recommendation
-                : 'Add a course and attendance values to start risk forecasting.'}
-            </p>
-          </div>
-
-          <div className="h-2 bg-subtle">
+      <section className="grid gap-6 border-b border-border-faint pb-8 md:grid-cols-[1fr_auto]">
+        <div className="min-w-0">
+          <p className="eyebrow-label">Highest Risk</p>
+          <p className="mt-2 truncate text-xl font-semibold text-text-primary sm:text-2xl">
+            {highestRisk?.course?.courseName || highestRisk?.course?.slotLabel || 'No course data'}
+          </p>
+          <p className="mt-2 text-sm text-text-muted">
+            {highestRisk
+              ? highestRisk.analytics.recommendation
+              : 'Add a course and attendance values to start risk forecasting.'}
+          </p>
+          <div className="mt-4 h-1.5 max-w-md bg-subtle">
             <Motion.div
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
@@ -130,84 +115,75 @@ export default function DashboardScreen({
               className="h-full bg-accent"
             />
           </div>
+          <p className="mt-1 text-[11px] text-text-muted">{progress}% of semester elapsed</p>
+        </div>
 
+        <div className="flex items-start justify-end gap-2">
           <button type="button" onClick={onAddCourse} className="primary-button">
             <Plus size={16} />
             Add Course
           </button>
         </div>
+      </section>
 
-        <div>
+      {hasCourses ? (
+        <section>
           <div className="mb-4 flex items-end justify-between gap-4">
             <div>
-              <p className="eyebrow-label">Course Risk Table</p>
-              <h3 className="mt-1 text-xl font-semibold">Tracked courses</h3>
+              <p className="eyebrow-label">Tracked Courses</p>
+              <h3 className="mt-1 text-xl font-semibold">Manage and remove</h3>
             </div>
             <p className="text-sm text-text-muted">{summary.totalCourses} total</p>
           </div>
 
-          {!hasCourses ? (
-            <div className="border-y border-border-faint py-10">
-              <p className="text-lg font-medium text-text-primary">No saved courses yet.</p>
-              <p className="mt-1 text-sm text-text-muted">
-                Add your first slot to start forecasting attendance risk.
-              </p>
-            </div>
-          ) : (
-            <div className="divide-y divide-border-faint border-y border-border-faint">
-              {summary.courseAnalytics.map(({ course, analytics }) => (
-                <article
-                  key={course.id}
-                  className="grid grid-cols-2 gap-4 py-4 md:grid-cols-[1fr_0.8fr_0.8fr_auto] md:items-center"
+          <div className="divide-y divide-border-faint border-y border-border-faint">
+            {summary.courseAnalytics.map(({ course }) => (
+              <article
+                key={course.id}
+                className="flex items-center justify-between gap-4 py-3"
+              >
+                <button
+                  type="button"
+                  onClick={() => onOpenCourse(course)}
+                  className="min-w-0 flex-1 text-left"
                 >
+                  <p className="truncate font-medium text-text-primary">
+                    {course.courseName || course.slotLabel}
+                  </p>
+                  <p className="mt-0.5 font-mono text-xs text-text-muted">{course.slotLabel}</p>
+                </button>
+
+                <div className="flex shrink-0 items-center gap-2">
                   <button
                     type="button"
                     onClick={() => onOpenCourse(course)}
-                    className="col-span-2 text-left md:col-span-1"
+                    className="ghost-button px-3 py-1.5"
                   >
-                    <p className="font-display text-lg font-semibold text-text-primary">
-                      {course.courseName || course.slotLabel}
-                    </p>
-                    <p className="mt-1 font-mono text-xs text-text-muted">{course.slotLabel}</p>
+                    Open
                   </button>
-
-                  <div>
-                    <p className="eyebrow-label">Projection</p>
-                    <p className="mt-1 text-lg font-semibold">
-                      {analytics.projectedAttendance.toFixed(1)}%
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="eyebrow-label">Risk</p>
-                    <p className={`mt-1 text-lg font-semibold ${getRiskClassName(analytics.riskLabel)}`}>
-                      {analytics.riskLabel} · {analytics.riskScore}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => onOpenCourse(course)}
-                      className="ghost-button px-3 py-1.5"
-                    >
-                      Open
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onDeleteCourse(course.id)}
-                      className="text-text-muted transition-colors hover:text-danger"
-                      title="Delete course"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteCourse(course.id)}
+                    className="text-text-muted transition-colors hover:text-danger"
+                    title="Delete course"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : (
+        <section>
+          <div className="border-y border-border-faint py-10">
+            <p className="text-lg font-medium text-text-primary">No saved courses yet.</p>
+            <p className="mt-1 text-sm text-text-muted">
+              Add your first slot to start forecasting attendance risk.
+            </p>
+          </div>
+        </section>
+      )}
 
       {hasCourses ? (
         <section className="space-y-6 border-t border-border-faint pt-8">

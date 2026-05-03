@@ -178,16 +178,32 @@ const ExamHorizonPanel = ({ courses = [], snapshotsByCourse = {}, semesterData, 
         })}
       </ul>
 
-      {atRiskRows.length > 0 && !isFinalOutcome ? (
+      {atRiskRows.length > 0 ? (
         <div className="mt-4 border-t border-border-faint pt-3 text-xs text-text-secondary">
           {atRiskRows.map(({ course, analytics }) => {
             const recovery = Math.max(0, analytics.recoveryClassesNeeded || 0);
             if (recovery === 0) return null;
+            const courseName = (
+              <span className="font-medium text-text-primary">
+                {course.courseName || course.slotLabel}
+              </span>
+            );
+            // Recovery requires more classes than remain — say so honestly
+            // instead of telling the student to do something impossible.
+            if (analytics.isRecoveryImpossible) {
+              return (
+                <p key={course.id} className="mt-1">
+                  {courseName}
+                  {' — '}
+                  <span className="font-mono">{recovery}</span>
+                  {recovery === 1 ? ' class' : ' classes'} short of {checkpoint.label};
+                  recovery isn't possible within the remaining schedule.
+                </p>
+              );
+            }
             return (
               <p key={course.id} className="mt-1">
-                <span className="font-medium text-text-primary">
-                  {course.courseName || course.slotLabel}
-                </span>
+                {courseName}
                 {' — attend the next '}
                 <span className="font-mono">{recovery}</span>
                 {recovery === 1 ? ' class' : ' classes'} to clear {checkpoint.label}.
