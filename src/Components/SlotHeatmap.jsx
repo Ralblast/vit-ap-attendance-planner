@@ -119,14 +119,20 @@ const buildMatrix = ({ slotDays, course, semesterData, today }) => {
           blockedClassDays += 1;
         } else if (isClassDayBySlot) {
           totalClassDays += 1;
-          if (planned.has(cellKey)) {
+          const isPlanned = planned.has(cellKey);
+          const isPast = cellKey < todayKey;
+          if (isPlanned) {
             status = 'planned-skip';
-            futureClassDays += 1;
-          } else if (cellKey < todayKey) {
+          } else if (isPast) {
             status = 'past';
-            pastClassDays += 1;
           } else {
             status = 'future';
+          }
+          // Past/future tally is independent of the planned-skip overlay so
+          // historical planned skips don't masquerade as upcoming classes.
+          if (isPast) {
+            pastClassDays += 1;
+          } else {
             futureClassDays += 1;
           }
           title = `${cellKey} — ${STATUS_LABELS[status]}${isToday ? ' (today)' : ''}`;
