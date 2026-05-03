@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion as Motion } from 'framer-motion';
-import { ArrowLeft, RotateCcw, Save } from 'lucide-react';
+import { ArrowLeft, Check, RotateCcw, Save } from 'lucide-react';
 
 import CalendarPlanner from './CalendarPlanner.jsx';
 import SlotHeatmap from './SlotHeatmap.jsx';
@@ -110,6 +110,37 @@ const formatPlannedSkipDate = dateString => {
   });
 };
 
+// Briefly displays a "Saved" check next to the planned-skip pill whenever
+// the underlying skippedDates array changes. The actual write happens
+// asynchronously in App's useUserSync; this just tells the student their
+// edit was acknowledged so they don't second-guess and click again.
+const SavedPulse = ({ trigger }) => {
+  const [visible, setVisible] = useState(false);
+  const isFirstRunRef = useRef(true);
+
+  useEffect(() => {
+    if (isFirstRunRef.current) {
+      isFirstRunRef.current = false;
+      return undefined;
+    }
+    setVisible(true);
+    const timer = setTimeout(() => setVisible(false), 1600);
+    return () => clearTimeout(timer);
+  }, [trigger]);
+
+  if (!visible) return null;
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-[11px] font-medium text-success transition-opacity"
+      role="status"
+      aria-live="polite"
+    >
+      <Check size={12} strokeWidth={3} />
+      Saved
+    </span>
+  );
+};
+
 const PlannedSkipPill = ({ skippedDates }) => {
   const [open, setOpen] = useState(false);
   const sorted = useMemo(() => {
@@ -163,7 +194,6 @@ const PlannerView = ({
   semesterData,
   activeCourse,
   snapshots,
-  onSaveSnapshot,
 }) => {
   const [activeHorizonKey, setActiveHorizonKey] = useState('fat');
   const {
@@ -440,14 +470,10 @@ const PlannerView = ({
           </div>
 
           {canSaveSnapshot ? (
-            <button
-              type="button"
-              onClick={() => onSaveSnapshot?.(analytics)}
-              className="ghost-button w-full justify-center"
-            >
-              <Save size={15} />
-              Save trend snapshot
-            </button>
+            <p className="flex items-center justify-center gap-1.5 text-xs text-text-muted">
+              <Save size={12} />
+              Trend snapshots save automatically when attendance changes.
+            </p>
           ) : null}
         </div>
 
@@ -457,7 +483,10 @@ const PlannerView = ({
               <p className="eyebrow-label">Skip Calendar</p>
               <h3 className="mt-1 text-2xl font-semibold">Plan future absences</h3>
             </div>
-            <PlannedSkipPill skippedDates={skippedDates} />
+            <div className="flex items-center gap-3">
+              <SavedPulse trigger={JSON.stringify(skippedDates)} />
+              <PlannedSkipPill skippedDates={skippedDates} />
+            </div>
           </div>
 
           <CalendarPlanner

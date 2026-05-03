@@ -207,6 +207,54 @@ export default function App() {
     [isAdmin]
   );
 
+  // Declared up here so the auto-snapshot effect below can include it in
+  // its dependency array without hitting the temporal dead zone. The body
+  // is identical to the previous handler — it just lives earlier now.
+  const handleSaveSnapshot = useCallback(async () => {
+    if (!user || !activeCourse || !plannerData.calculationData.isValid) {
+      return;
+    }
+
+    try {
+      const analytics = calculateAttendanceAnalytics({
+        course: {
+          ...activeCourse,
+          classesTaken: parsePlannerValue(plannerData.classesTaken),
+          classesAttended: parsePlannerValue(plannerData.classesAttended),
+          skippedDates: plannerData.skippedDates,
+        },
+        semester: semesterData,
+        snapshots: snapshotsByCourse[activeCourse.id] || [],
+      });
+
+      const snapshot = {
+        id: `snapshot-${Date.now()}`,
+        userId: user.uid,
+        courseId: activeCourse.id,
+        attendancePercentage: analytics.currentAttendance,
+        classesTaken: parsePlannerValue(plannerData.classesTaken),
+        classesAttended: parsePlannerValue(plannerData.classesAttended),
+        riskScore: analytics.riskScore,
+        riskLabel: analytics.riskLabel,
+        createdAt: new Date().toISOString(),
+      };
+
+      await saveAttendanceSnapshot(snapshot);
+    } catch (snapshotError) {
+      console.error('Failed to save attendance snapshot.', snapshotError);
+    }
+  }, [
+    activeCourse,
+    plannerData.calculationData.isValid,
+    plannerData.classesAttended,
+    plannerData.classesTaken,
+    plannerData.skippedDates,
+    saveAttendanceSnapshot,
+    semesterData,
+    snapshotsByCourse,
+    user,
+  ]);
+
   useEffect(() => {
     if (authLoading) {
       return;
@@ -317,9 +365,16 @@ export default function App() {
     ).catch(syncError => {
       console.error('Failed to sync attendance changes.', syncError);
     });
+
+    // Auto-snapshot whenever the student's attendance numbers actually
+    // change. saveAttendanceSnapshot dedups one entry per course per day,
+    // so rapid edits in a single sitting don't pollute the timeseries —
+    // the latest reading just overwrites the same-day snapshot.
+    handleSaveSnapshot();
   }, [
     activeCourse,
     activeCourseId,
+    handleSaveSnapshot,
     plannerData.calculationData.isValid,
     plannerData.classesAttended,
     plannerData.classesTaken,
@@ -445,50 +500,6 @@ export default function App() {
     }
   };
 
-  const handleSaveSnapshot = useCallback(async () => {
-    if (!user || !activeCourse || !plannerData.calculationData.isValid) {
-      return;
-    }
-
-    try {
-      const analytics = calculateAttendanceAnalytics({
-        course: {
-          ...activeCourse,
-          classesTaken: parsePlannerValue(plannerData.classesTaken),
-          classesAttended: parsePlannerValue(plannerData.classesAttended),
-          skippedDates: plannerData.skippedDates,
-        },
-        semester: semesterData,
-        snapshots: snapshotsByCourse[activeCourse.id] || [],
-      });
-
-      const snapshot = {
-        id: `snapshot-${Date.now()}`,
-        userId: user.uid,
-        courseId: activeCourse.id,
-        attendancePercentage: analytics.currentAttendance,
-        classesTaken: parsePlannerValue(plannerData.classesTaken),
-        classesAttended: parsePlannerValue(plannerData.classesAttended),
-        riskScore: analytics.riskScore,
-        riskLabel: analytics.riskLabel,
-        createdAt: new Date().toISOString(),
-      };
-
-      await saveAttendanceSnapshot(snapshot);
-    } catch (snapshotError) {
-      console.error('Failed to save attendance snapshot.', snapshotError);
-    }
-  }, [
-    activeCourse,
-    plannerData.calculationData.isValid,
-    plannerData.classesAttended,
-    plannerData.classesTaken,
-    plannerData.skippedDates,
-    saveAttendanceSnapshot,
-    semesterData,
-    snapshotsByCourse,
-    user,
-  ]);
 
   const handleLogout = async () => {
     try {
@@ -522,7 +533,6 @@ export default function App() {
           semesterData={semesterData}
           activeCourse={activeCourse}
           snapshots={activeCourse ? snapshotsByCourse[activeCourse.id] || [] : []}
-          onSaveSnapshot={handleSaveSnapshot}
         />
       );
     }
