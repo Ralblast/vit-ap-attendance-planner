@@ -131,47 +131,61 @@ export default function DashboardScreen({
           <div className="mb-4 flex items-end justify-between gap-4">
             <div>
               <p className="eyebrow-label">Tracked Courses</p>
-              <h3 className="mt-1 text-xl font-semibold">Manage and remove</h3>
+              <h3 className="mt-1 text-xl font-semibold">Open or remove</h3>
             </div>
             <p className="text-sm text-text-muted">{summary.totalCourses} total</p>
           </div>
 
-          <div className="divide-y divide-border-faint border-y border-border-faint">
-            {summary.courseAnalytics.map(({ course }) => (
-              <article
-                key={course.id}
-                className="flex items-center justify-between gap-4 py-3"
-              >
-                <button
-                  type="button"
-                  onClick={() => onOpenCourse(course)}
-                  className="min-w-0 flex-1 text-left"
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {summary.courseAnalytics.map(({ course, analytics }) => {
+              const dotColor =
+                analytics.riskLabel === 'Critical'
+                  ? 'var(--red)'
+                  : analytics.riskLabel === 'Warning'
+                    ? 'var(--amber)'
+                    : 'var(--green)';
+              return (
+                <article
+                  key={course.id}
+                  className="group relative border border-border-faint bg-surface p-4 transition-colors hover:border-border-strong"
                 >
-                  <p className="truncate font-medium text-text-primary">
-                    {course.courseName || course.slotLabel}
-                  </p>
-                  <p className="mt-0.5 font-mono text-xs text-text-muted">{course.slotLabel}</p>
-                </button>
-
-                <div className="flex shrink-0 items-center gap-2">
                   <button
                     type="button"
                     onClick={() => onOpenCourse(course)}
-                    className="ghost-button px-3 py-1.5"
+                    className="block w-full pr-7 text-left"
                   >
-                    Open
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="inline-block h-2 w-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: dotColor }}
+                        aria-hidden="true"
+                      />
+                      <p className="truncate text-sm font-semibold text-text-primary">
+                        {course.courseName || course.slotLabel}
+                      </p>
+                    </div>
+                    <p className="mt-2 font-mono text-[11px] text-accent">{course.slotLabel}</p>
+                    <p className="mt-3 font-display text-2xl font-semibold text-text-primary">
+                      {analytics.currentAttendance.toFixed(1)}
+                      <span className="ml-0.5 text-base font-normal text-text-muted">%</span>
+                    </p>
                   </button>
+
                   <button
                     type="button"
-                    onClick={() => onDeleteCourse(course.id)}
-                    className="text-text-muted transition-colors hover:text-danger"
+                    onClick={event => {
+                      event.stopPropagation();
+                      onDeleteCourse(course.id);
+                    }}
+                    className="absolute right-3 top-3 text-text-muted opacity-0 transition-opacity hover:text-danger group-hover:opacity-100 focus:opacity-100"
+                    aria-label={`Delete ${course.courseName || course.slotLabel}`}
                     title="Delete course"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={14} />
                   </button>
-                </div>
-              </article>
-            ))}
+                </article>
+              );
+            })}
           </div>
         </section>
       ) : (
