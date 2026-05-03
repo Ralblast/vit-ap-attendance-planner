@@ -114,25 +114,15 @@ const buildMatrix = ({ courses, snapshots, semesterData }) => {
     });
 
     const finalPct = filledValues[filledValues.length - 1];
-    const firstPct = filledValues.find(value => value !== null);
-    const delta =
-      Number.isFinite(finalPct) && Number.isFinite(firstPct) ? finalPct - firstPct : 0;
 
     return {
       course,
       values: filledValues,
       finalPct,
-      delta,
     };
   });
 
   return { rows, monthLabels, totalWeeks };
-};
-
-const formatDelta = delta => {
-  if (!Number.isFinite(delta) || Math.abs(delta) < 0.5) return '±0';
-  const sign = delta > 0 ? '+' : '−';
-  return `${sign}${Math.abs(delta).toFixed(1)}`;
 };
 
 const AttendanceHeatmap = ({ courses = [], snapshots = [], semesterData }) => {
@@ -176,12 +166,6 @@ const AttendanceHeatmap = ({ courses = [], snapshots = [], semesterData }) => {
           <div className="mt-1 flex flex-col" style={{ gap: `${cellGap}px` }}>
             {matrix.rows.map(row => {
               const finalBucket = bucketFor(row.finalPct);
-              const trendColor =
-                row.delta > 0.5
-                  ? 'var(--green)'
-                  : row.delta < -0.5
-                    ? 'var(--red)'
-                    : 'var(--text-muted)';
               return (
                 <div
                   key={row.course.id}
@@ -189,18 +173,11 @@ const AttendanceHeatmap = ({ courses = [], snapshots = [], semesterData }) => {
                   style={{ gap: `${cellGap}px` }}
                 >
                   <div
-                    className="flex shrink-0 items-center justify-between pr-2"
+                    className="flex shrink-0 items-center pr-2"
                     style={{ width: 200 }}
                   >
                     <span className="truncate text-[11px] font-medium text-text-secondary">
                       {row.course.courseName || row.course.slotLabel}
-                    </span>
-                    <span
-                      className="ml-2 shrink-0 font-mono text-[10px]"
-                      style={{ color: trendColor }}
-                      title={`Net change across the semester: ${formatDelta(row.delta)}%`}
-                    >
-                      {formatDelta(row.delta)}%
                     </span>
                   </div>
 
