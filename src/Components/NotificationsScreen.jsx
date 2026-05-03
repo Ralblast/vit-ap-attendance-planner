@@ -114,115 +114,135 @@ export default function NotificationsScreen({
         </h2>
       </section>
 
-      <section className="grid gap-8 lg:grid-cols-[0.75fr_1.25fr]">
-        <div className="space-y-5 lg:border-r lg:border-border-faint lg:pr-8">
-          <div>
-            <p className="eyebrow-label">Delivery</p>
-            <p className="mt-2 text-sm text-text-secondary">
-              Sends to every channel you have configured.
-            </p>
-            <p className="mt-1 text-xs text-text-muted">
-              Active: {channelsConfigured.length ? channelsConfigured.join(' + ') : 'none'}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={sendReview}
-            disabled={isSending || courses.length === 0}
-            className="primary-button w-full disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isSending ? 'Sending...' : 'Send review now'}
-          </button>
-          {status ? <p className="text-sm text-text-muted">{status}</p> : null}
-          <p className="text-xs text-text-muted">
-            Last delivery: {formatLastSent(userData?.lastEmailSentAt)}
-          </p>
-        </div>
-
+      <section className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="space-y-6">
-          <label className="flex items-center justify-between border-y border-border-faint py-4">
-            <span>
-              <span className="block font-medium text-text-primary">Risk alerts</span>
-              <span className="text-sm text-text-muted">
-                Notify when a course needs attention.
-              </span>
-            </span>
-            <input
-              type="checkbox"
-              checked={userData?.alertEnabled !== false}
-              onChange={event => onUpdatePreferences({ alertEnabled: event.target.checked })}
-            />
-          </label>
-
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-medium text-text-secondary">
-              Alert threshold (%)
-            </span>
-            <input
-              type="number"
-              min="75"
-              max="100"
-              value={userData?.alertThreshold || 78}
-              onChange={event =>
-                onUpdatePreferences({ alertThreshold: Number(event.target.value) })
-              }
-              className="field-input max-w-xs"
-            />
-          </label>
-
-          <label className="flex items-center justify-between border-y border-border-faint py-4">
-            <span>
-              <span className="block font-medium text-text-primary">Weekly summary</span>
-              <span className="text-sm text-text-muted">Send a consolidated course review.</span>
-            </span>
-            <input
-              type="checkbox"
-              checked={userData?.weeklySummaryEnabled !== false}
-              onChange={event =>
-                onUpdatePreferences({ weeklySummaryEnabled: event.target.checked })
-              }
-            />
-          </label>
-
-          <div className="border-t border-border-faint pt-5">
-            <p className="eyebrow-label">Telegram</p>
-            <p className="mt-1 text-sm text-text-muted">
-              Create a bot via @BotFather, then message your bot once and paste the chat ID.
-            </p>
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-text-secondary">
-                  Bot token
-                </span>
+          <div className="border border-border-default bg-surface p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="font-display text-lg font-semibold text-text-primary">
+                  Weekly attendance alerts
+                </p>
+                <p className="mt-1 text-sm text-text-muted">
+                  Sent every Sunday with your lowest course, anything below 75%,
+                  and a borderline watchlist. Delivered to email and Telegram.
+                </p>
+              </div>
+              <label className="inline-flex shrink-0 cursor-pointer items-center">
                 <input
-                  type="password"
-                  autoComplete="off"
-                  value={telegram.botToken}
-                  onChange={event =>
-                    setTelegram(value => ({ ...value, botToken: event.target.value }))
-                  }
-                  onBlur={() => persistTelegram(telegram)}
-                  className="field-input"
-                  placeholder="123456:ABC..."
+                  type="checkbox"
+                  className="peer sr-only"
+                  checked={userData?.alertEnabled !== false}
+                  onChange={event => {
+                    const next = event.target.checked;
+                    onUpdatePreferences({
+                      alertEnabled: next,
+                      weeklySummaryEnabled: next,
+                    });
+                  }}
                 />
-              </label>
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-text-secondary">
-                  Chat ID
+                <span className="relative inline-block h-6 w-11 rounded-full bg-border-default transition-colors peer-checked:bg-accent">
+                  <span className="absolute left-0.5 top-0.5 inline-block h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5" />
                 </span>
-                <input
-                  type="text"
-                  value={telegram.chatId}
-                  onChange={event =>
-                    setTelegram(value => ({ ...value, chatId: event.target.value }))
-                  }
-                  onBlur={() => persistTelegram(telegram)}
-                  className="field-input"
-                  placeholder="123456789"
-                />
               </label>
             </div>
+
+            <div className="mt-5 grid gap-4 border-t border-border-faint pt-4 sm:grid-cols-2">
+              <div>
+                <p className="eyebrow-label">Active channels</p>
+                <p className="mt-1 font-mono text-sm text-text-secondary">
+                  {channelsConfigured.length
+                    ? channelsConfigured.join(' + ')
+                    : 'none'}
+                </p>
+              </div>
+              <div>
+                <p className="eyebrow-label">Last delivery</p>
+                <p className="mt-1 font-mono text-sm text-text-secondary">
+                  {formatLastSent(userData?.lastEmailSentAt)}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center gap-3 border-t border-border-faint pt-4">
+              <button
+                type="button"
+                onClick={sendReview}
+                disabled={isSending || courses.length === 0}
+                className="primary-button disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isSending ? 'Sending…' : 'Send a test alert now'}
+              </button>
+              {status ? (
+                <p className="text-xs text-text-muted">{status}</p>
+              ) : null}
+            </div>
           </div>
+
+          <div className="border border-border-faint bg-surface p-5">
+            <p className="eyebrow-label">Threshold</p>
+            <p className="mt-2 text-sm text-text-secondary">
+              Courses below this percent show up in the weekly digest. Default 78%
+              gives a small buffer above the 75% eligibility line.
+            </p>
+            <label className="mt-3 block">
+              <span className="sr-only">Alert threshold (%)</span>
+              <input
+                type="number"
+                min="75"
+                max="100"
+                value={userData?.alertThreshold || 78}
+                onChange={event =>
+                  onUpdatePreferences({ alertThreshold: Number(event.target.value) })
+                }
+                className="field-input max-w-[120px]"
+              />
+            </label>
+          </div>
+        </div>
+
+        <div className="border border-border-faint bg-surface p-5">
+          <p className="eyebrow-label">Telegram (optional)</p>
+          <p className="mt-2 text-sm text-text-secondary">
+            Create a bot via @BotFather, message it once, then paste the bot token
+            and your chat ID. Telegram delivery turns on automatically when both
+            fields are filled.
+          </p>
+          <div className="mt-4 space-y-3">
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-text-secondary">
+                Bot token
+              </span>
+              <input
+                type="password"
+                autoComplete="off"
+                value={telegram.botToken}
+                onChange={event =>
+                  setTelegram(value => ({ ...value, botToken: event.target.value }))
+                }
+                onBlur={() => persistTelegram(telegram)}
+                className="field-input"
+                placeholder="123456:ABC..."
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-text-secondary">
+                Chat ID
+              </span>
+              <input
+                type="text"
+                value={telegram.chatId}
+                onChange={event =>
+                  setTelegram(value => ({ ...value, chatId: event.target.value }))
+                }
+                onBlur={() => persistTelegram(telegram)}
+                className="field-input"
+                placeholder="123456789"
+              />
+            </label>
+          </div>
+          <p className="mt-3 text-xs text-text-muted">
+            Inputs save automatically when you click out.
+          </p>
         </div>
       </section>
     </div>

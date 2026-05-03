@@ -2,6 +2,7 @@ import { buildDashboardSummary } from '../src/utils/attendanceAnalytics.js';
 import {
   buildAttendanceEmailText,
   buildAttendanceMarkdown,
+  buildAttendanceSubject,
   createMailTransport,
   getAttendanceReviewFrom,
   getMissingEmailEnv,
@@ -31,13 +32,6 @@ const groupSnapshotsByCourse = snapshots =>
     return groups;
   }, {});
 
-const buildSubject = summary => {
-  const needsAttention = summary.warningCourses + summary.criticalCourses;
-  if (needsAttention > 0) {
-    return `Attendance alert: ${needsAttention} course${needsAttention === 1 ? '' : 's'} need attention`;
-  }
-  return process.env.ATTENDANCE_REVIEW_SUBJECT || 'Weekly attendance review';
-};
 
 const processUser = async ({ doc, semester, transporter, fromAddress }) => {
   const userData = doc.data();
@@ -68,7 +62,7 @@ const processUser = async ({ doc, semester, transporter, fromAddress }) => {
     return { uid: doc.id, status: 'skipped-healthy' };
   }
 
-  const subject = buildSubject(summary);
+  const subject = buildAttendanceSubject({ summary, courses: summary.courseAnalytics });
   const text = buildAttendanceEmailText({ summary, courses: summary.courseAnalytics });
   const channels = {};
 

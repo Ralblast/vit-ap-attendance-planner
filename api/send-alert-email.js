@@ -2,6 +2,7 @@ import { buildDashboardSummary } from '../src/utils/attendanceAnalytics.js';
 import {
   buildAttendanceEmailText,
   buildAttendanceMarkdown,
+  buildAttendanceSubject,
   createMailTransport,
   getAttendanceReviewFrom,
   getMissingEmailEnv,
@@ -76,10 +77,14 @@ export default async function handler(request, response) {
   if (missingSmtpEnv.length === 0) {
     try {
       const text = buildAttendanceEmailText({ summary, courses: summary.courseAnalytics });
+      const computedSubject = buildAttendanceSubject({
+        summary,
+        courses: summary.courseAnalytics,
+      });
       const info = await createMailTransport().sendMail({
         from: getAttendanceReviewFrom(),
         to: decoded.email,
-        subject: String(body.subject || 'Attendance risk review').slice(0, 120),
+        subject: String(body.subject || computedSubject).slice(0, 120),
         text,
       });
       results.email = { ok: true, messageId: info.messageId };
