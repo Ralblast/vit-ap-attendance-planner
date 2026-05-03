@@ -71,6 +71,33 @@ const buildBlockedMap = academicCalendar => {
   return map;
 };
 
+// Non-blocking annotations (academic markers like commencement or lab FAT
+// week). These don't change the cell colour or class-counting, but the
+// event name is surfaced in the hover tooltip so the student knows what's
+// happening on that date.
+const buildAnnotationMap = academicCalendar => {
+  const map = new Map();
+  (academicCalendar || []).forEach(event => {
+    if (BLOCKING_TYPES.has(event.type) || event.type !== 'academic') {
+      return;
+    }
+    if (event.date) {
+      map.set(event.date, event);
+      return;
+    }
+    if (event.startDate && event.endDate) {
+      const start = new Date(`${event.startDate}T00:00:00`);
+      const end = new Date(`${event.endDate}T00:00:00`);
+      const cursor = new Date(start);
+      while (cursor <= end) {
+        map.set(formatDate(cursor), event);
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    }
+  });
+  return map;
+};
+
 const buildMatrix = ({ slotDays, course, semesterData, today }) => {
   const start = semesterStartFromCalendar(semesterData?.academicCalendar);
   const end =
@@ -85,12 +112,21 @@ const buildMatrix = ({ slotDays, course, semesterData, today }) => {
   }
 
   const blocked = buildBlockedMap(semesterData.academicCalendar);
+  const annotations = buildAnnotationMap(semesterData.academicCalendar);
   const planned = new Set(course?.skippedDates || []);
   const todayKey = formatDate(today);
 
-  const firstColumn = startOfWeek(start);
+  // Pad the matrix with ~4 weeks of empty cells on each side so the
+  // heatmap doesn't run flush against the card edges. The padding cells
+  // fall outside the inSemester check below and render as transparent.
+  const PADDING_WEEKS = 4;
+  const semesterFirstColumn = startOfWeek(start);
   const lastColumn = startOfWeek(end);
-  const totalWeeks = Math.max(1, Math.round((lastColumn - firstColumn) / (7 * DAY_MS)) + 1);
+  const firstColumn = new Date(semesterFirstColumn);
+  firstColumn.setDate(firstColumn.getDate() - PADDING_WEEKS * 7);
+  const totalWeeks =
+    Math.max(1, Math.round((lastColumn - semesterFirstColumn) / (7 * DAY_MS)) + 1) +
+    PADDING_WEEKS * 2;
 
   const cells = [];
   let totalClassDays = 0;
@@ -111,6 +147,7 @@ const buildMatrix = ({ slotDays, course, semesterData, today }) => {
       let status = 'empty';
       let title = cellKey;
       const isToday = cellKey === todayKey;
+      const annotationEvent = annotations.get(cellKey);
 
       if (inSemester) {
         if (isClassDayBySlot && blockingEvent) {
@@ -136,9 +173,17 @@ const buildMatrix = ({ slotDays, course, semesterData, today }) => {
             futureClassDays += 1;
           }
           title = `${cellKey} — ${STATUS_LABELS[status]}${isToday ? ' (today)' : ''}`;
+          // Layer the annotation onto the tooltip so the student sees
+          // context like "Lab FAT week" even though classes still meet.
+          if (annotationEvent) {
+            title += ` · ${annotationEvent.name}`;
+          }
         } else if (blockingEvent) {
           status = 'off-class';
           title = `${cellKey} — ${blockingEvent.name}`;
+        } else if (annotationEvent) {
+          status = 'off-class';
+          title = `${cellKey} — ${annotationEvent.name}`;
         } else {
           status = 'off-class';
         }
@@ -149,18 +194,26 @@ const buildMatrix = ({ slotDays, course, semesterData, today }) => {
     cells.push(column);
   }
 
-  const monthLabels = cells.map((_, weekIndex) => {
+  // Flag the first column of each calendar month so the renderer can
+  // insert a small visual gap before it. Makes month boundaries readable
+  // without resorting to vertical separator lines.
+  const monthLabels = [];
+  const monthBreaks = [];
+  let lastMonth = null;
+  for (let weekIndex = 0; weekIndex < cells.length; weekIndex += 1) {
     const date = new Date(firstColumn);
     date.setDate(date.getDate() + weekIndex * 7);
-    if (weekIndex === 0 || date.getDate() <= 7) {
-      return date.toLocaleString('en-US', { month: 'short' });
-    }
-    return '';
-  });
+    const month = date.getMonth();
+    const isNewMonth = month !== lastMonth;
+    monthBreaks.push(weekIndex > 0 && isNewMonth);
+    monthLabels.push(isNewMonth ? date.toLocaleString('en-US', { month: 'short' }) : '');
+    lastMonth = month;
+  }
 
   return {
     cells,
     monthLabels,
+    monthBreaks,
     totalClassDays,
     pastClassDays,
     futureClassDays,
@@ -216,6 +269,9 @@ const SlotHeatmap = ({
 
   const cellSize = compact ? 11 : 14;
   const cellGap = compact ? 2 : 3;
+  // Extra spacing inserted before the first column of every new month so
+  // boundaries are visually obvious without drawing separator lines.
+  const monthGap = compact ? 6 : 8;
 
   const stats = course
     ? `${matrix.totalClassDays} classes · ${matrix.pastClassDays} done · ${matrix.futureClassDays} upcoming`
@@ -243,8 +299,11 @@ const SlotHeatmap = ({
             {matrix.monthLabels.map((label, weekIndex) => (
               <div
                 key={weekIndex}
-                style={{ width: cellSize }}
-                className="text-[9px] uppercase tracking-wider text-text-muted"
+                style={{
+                  width: cellSize,
+                  marginLeft: matrix.monthBreaks[weekIndex] ? monthGap : undefined,
+                }}
+                className="text-[10px] font-medium uppercase tracking-wider text-text-secondary"
               >
                 {label}
               </div>
@@ -269,7 +328,10 @@ const SlotHeatmap = ({
                 <div
                   key={weekIndex}
                   className="flex flex-col"
-                  style={{ gap: `${cellGap}px` }}
+                  style={{
+                    gap: `${cellGap}px`,
+                    marginLeft: matrix.monthBreaks[weekIndex] ? monthGap : undefined,
+                  }}
                 >
                   {column.map(cell => {
                     const style = STATUS_STYLES[cell.status];
