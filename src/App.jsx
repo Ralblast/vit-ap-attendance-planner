@@ -12,6 +12,7 @@ import LandingScreen from './Components/LandingScreen.jsx';
 import LiveClock from './Components/LiveClock.jsx';
 import NotificationsScreen from './Components/NotificationsScreen.jsx';
 import PlannerView from './Components/PlannerView.jsx';
+import SemesterCalendarScreen from './Components/SemesterCalendarScreen.jsx';
 import ThemeToggle from './Components/ThemeToggle.jsx';
 import { useAttendancePlanner } from './hooks/useAttendancePlanner.js';
 import { useSemesterData } from './hooks/useSemesterData.js';
@@ -26,6 +27,7 @@ const SCREEN = {
   ADD_COURSE: 'add-course',
   PLANNER: 'planner',
   INSIGHTS: 'insights',
+  CALENDAR: 'calendar',
   NOTIFICATIONS: 'notifications',
   ADMIN: 'admin',
 };
@@ -33,6 +35,7 @@ const SCREEN = {
 const NAV_ITEMS = [
   { key: SCREEN.DASHBOARD, label: 'Dashboard', icon: LayoutDashboard },
   { key: SCREEN.INSIGHTS, label: 'Insights', icon: BarChart3 },
+  { key: SCREEN.CALENDAR, label: 'Calendar', icon: CalendarRange },
   { key: SCREEN.NOTIFICATIONS, label: 'Alerts', icon: Bell },
   { key: SCREEN.ADMIN, label: 'Admin', icon: Settings, adminOnly: true },
 ];
@@ -174,6 +177,7 @@ export default function App() {
     userData,
     saveSlot,
     updateAttendance,
+    updateBulkAttendance,
     updateSkips,
     updateTheme,
     deleteCourse,
@@ -442,6 +446,38 @@ export default function App() {
     setScreen(SCREEN.ADD_COURSE);
   };
 
+  // Called from the Semester Calendar's "Plan skip" button. Navigates to
+  // the per-course Planner, pre-selected to the slot the user picked in
+  // the calendar dropdown. For signed-in users with a matching saved
+  // course we route into THAT course (skips persist). For guests or
+  // signed-in users without a saved course, we open the planner in
+  // session-only mode with that slot.
+  const handlePlanSkipForSlot = useCallback(
+    slotInfo => {
+      if (!slotInfo?.slot || !Array.isArray(slotInfo?.slotDays) || slotInfo.slotDays.length === 0) {
+        return;
+      }
+      const matching = (userData?.courses || []).find(
+        course => course.slotLabel === slotInfo.slot
+      );
+      if (matching) {
+        setActiveCourseId(matching.id);
+      } else {
+        setActiveCourseId(null);
+      }
+      setSelectedSlot(
+        buildSelectedSlot({
+          slot: slotInfo.slot,
+          days: slotInfo.slotDays,
+          selectedYear: slotInfo.year,
+          selectedCredit: slotInfo.credit,
+        })
+      );
+      setScreen(SCREEN.PLANNER);
+    },
+    [userData?.courses]
+  );
+
   const handleAddCourseClose = () => {
     if (isSavingCourse) {
       return;
@@ -518,6 +554,7 @@ export default function App() {
           onAddCourse={handleAddCourse}
           onOpenCourse={handleOpenCourse}
           onDeleteCourse={handleDeleteCourse}
+          onBulkUpdate={updateBulkAttendance}
           semesterData={semesterData}
           snapshotsByCourse={snapshotsByCourse}
         />
@@ -533,6 +570,8 @@ export default function App() {
           semesterData={semesterData}
           activeCourse={activeCourse}
           snapshots={activeCourse ? snapshotsByCourse[activeCourse.id] || [] : []}
+          isGuest={!user}
+          onSignInRequest={() => setIsAuthModalOpen(true)}
         />
       );
     }
@@ -543,6 +582,19 @@ export default function App() {
           courses={userData?.courses || []}
           semesterData={semesterData}
           snapshots={userData?.attendanceSnapshots || []}
+        />
+      );
+    }
+
+    if (screen === SCREEN.CALENDAR) {
+      const firstCourse = userData?.courses?.[0];
+      return (
+        <SemesterCalendarScreen
+          semesterData={semesterData}
+          defaultSlot={firstCourse?.slotLabel || selectedSlot?.slot || ''}
+          defaultSlotDays={firstCourse?.slotDays || selectedSlot?.days || []}
+          onBack={handleOpenDashboard}
+          isGuest={false}
         />
       );
     }
@@ -575,6 +627,7 @@ export default function App() {
         onAddCourse={handleAddCourse}
         onOpenCourse={handleOpenCourse}
         onDeleteCourse={handleDeleteCourse}
+        onBulkUpdate={updateBulkAttendance}
         semesterData={semesterData}
         snapshotsByCourse={snapshotsByCourse}
       />
@@ -673,6 +726,25 @@ export default function App() {
             handleStartOver={handleOpenDashboard}
             plannerData={plannerData}
             semesterData={semesterData}
+            isGuest
+            onSignInRequest={() => setIsAuthModalOpen(true)}
+          />
+          <AppFooter />
+        </main>
+      );
+    }
+
+    if (screen === SCREEN.CALENDAR) {
+      return (
+        <main className="mx-auto w-full max-w-[1200px] flex-1 px-6 py-8">
+          <SemesterCalendarScreen
+            semesterData={semesterData}
+            defaultSlot={selectedSlot?.slot || ''}
+            defaultSlotDays={selectedSlot?.days || []}
+            onBack={() => setScreen(SCREEN.LANDING)}
+            onPlanSkip={handlePlanSkipForSlot}
+            userCourses={[]}
+            isGuest
           />
           <AppFooter />
         </main>
@@ -682,6 +754,7 @@ export default function App() {
     return (
       <LandingScreen
         onStartGuest={handleAddCourse}
+        onOpenCalendar={() => setScreen(SCREEN.CALENDAR)}
         onSignIn={() => setIsAuthModalOpen(true)}
       />
     );

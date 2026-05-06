@@ -101,6 +101,38 @@ export const getRemainingClassDates = (
   return classDates;
 };
 
+// Enumerate slot class days strictly between fromDate (exclusive) and
+// toDate (inclusive). Holidays and exam blocks are skipped, matching the
+// rest of the engine. Used by the Update Attendance strip to auto-fill
+// expected `taken` and to drive the precise-skip chip picker.
+export const getClassDatesBetween = (slotDays, academicCalendar, fromDate, toDate) => {
+  const start = parseDate(fromDate);
+  const end = parseDate(toDate);
+
+  if (!Array.isArray(slotDays) || slotDays.length === 0 || !start || !end || start >= end) {
+    return [];
+  }
+
+  const blockedDates = buildBlockedDateSet(academicCalendar);
+  const cursor = new Date(start.getTime());
+  cursor.setHours(0, 0, 0, 0);
+  cursor.setDate(cursor.getDate() + 1); // exclusive of fromDate
+
+  const endNormalized = new Date(end.getTime());
+  endNormalized.setHours(0, 0, 0, 0);
+
+  const classDates = [];
+  while (cursor <= endNormalized) {
+    const dateKey = formatDate(cursor);
+    if (slotDays.includes(cursor.getDay()) && !blockedDates.has(dateKey)) {
+      classDates.push(dateKey);
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return classDates;
+};
+
 const buildTrend = snapshots => {
   const points = (Array.isArray(snapshots) ? snapshots : [])
     .map((snapshot, index) => [index, toNumber(snapshot.attendancePercentage)])
@@ -299,21 +331,39 @@ export const calculateAttendanceAnalytics = ({
     fromDate,
   });
   const trendBucket = trend.slope > 0.35 ? 1 : trend.slope < -0.35 ? -1 : 0;
-  const classifierLabel = getMlLabel([
-    currentAttendance,
-    projectedAttendance,
+  const classifierFeatures = [
+    Number(currentAttendance.toFixed(1)),
+    Number(projectedAttendance.toFixed(1)),
     remainingSkips,
     recoveryClassesNeeded,
     trendBucket,
-  ]);
+  ];
+  const classifierLabel = getMlLabel(classifierFeatures);
+  // Per-component breakdown of the formula score so the "Why this verdict?"
+  // panel in the planner can show exactly what's driving the number. Each
+  // entry is signed: positive = adds risk, negative = reduces risk.
+  const projectionGapPenalty = Math.max(0, 100 - projectedAttendance) - 100;
+  // Re-derive component contributions matching the formula below so the
+  // displayed sum equals the rendered riskScore.
+  const projectionPenalty = 100 - projectedAttendance;
+  const thresholdDeficitPenalty =
+    classesTaken > 0 ? Math.max(0, threshold - currentAttendance) * 1.2 : 0;
+  const skipBufferPenalty = Math.max(0, -remainingSkips) * 8;
+  const recoveryPenalty = recoveryClassesNeeded * 3;
+  const plannedSkipPenalty = plannedSkipCount * 1.5;
+  const trendAdjustment =
+    trend.direction === 'declining' ? 8 : trend.direction === 'improving' ? -5 : 0;
   const riskScore = clamp(
-    100 - projectedAttendance +
-      (classesTaken > 0 ? Math.max(0, threshold - currentAttendance) * 1.2 : 0) +
-      Math.max(0, -remainingSkips) * 8 +
-      recoveryClassesNeeded * 3 +
-      plannedSkipCount * 1.5 +
-      (trend.direction === 'declining' ? 8 : trend.direction === 'improving' ? -5 : 0)
+    projectionPenalty +
+      thresholdDeficitPenalty +
+      skipBufferPenalty +
+      recoveryPenalty +
+      plannedSkipPenalty +
+      trendAdjustment
   );
+  // Suppress lint noise — this is a derived diagnostic kept for future
+  // surfacing if we want to label "below 100% projection" specifically.
+  void projectionGapPenalty;
   const formulaLabel =
     projectedAttendance < threshold - 4 || currentAttendance < threshold - 8 || riskScore >= 70
       ? 'Critical'
@@ -334,7 +384,17 @@ export const calculateAttendanceAnalytics = ({
     isRecoveryImpossible: recoveryClassesNeeded > remainingClasses,
     riskScore: Math.round(riskScore),
     riskLabel,
+    formulaLabel,
     classifierLabel,
+    classifierFeatures,
+    riskBreakdown: {
+      projectionPenalty: Number(projectionPenalty.toFixed(1)),
+      thresholdDeficitPenalty: Number(thresholdDeficitPenalty.toFixed(1)),
+      skipBufferPenalty: Number(skipBufferPenalty.toFixed(1)),
+      recoveryPenalty: Number(recoveryPenalty.toFixed(1)),
+      plannedSkipPenalty: Number(plannedSkipPenalty.toFixed(1)),
+      trendAdjustment: Number(trendAdjustment.toFixed(1)),
+    },
     trend,
     forecast,
     daysLeft,

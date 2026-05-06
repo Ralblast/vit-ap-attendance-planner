@@ -57,6 +57,16 @@ const normalizeCourse = course => ({
   classesTaken: toSafeNumber(course?.classesTaken),
   classesAttended: toSafeNumber(course?.classesAttended),
   skippedDates: Array.isArray(course?.skippedDates) ? course.skippedDates : [],
+  // Per-day attendance the student logged via the precise-skip picker.
+  // Distinct from skippedDates (which is forward planning intent) — these
+  // are confirmed past misses with exact dates, used for honest heatmap
+  // colouring. Kept optional so older docs without this field stay valid.
+  missedDates: Array.isArray(course?.missedDates) ? course.missedDates : [],
+  // Class days the slot calendar expected to happen but didn't (faculty
+  // cancelled, university closure, etc.). Excluded from totalClassDays in
+  // the heatmap and excluded as candidates from the missed-picker so a
+  // single date can never be both cancelled and missed.
+  cancelledDates: Array.isArray(course?.cancelledDates) ? course.cancelledDates : [],
   lastUpdated: normalizeDateValue(course?.lastUpdated),
 });
 
@@ -158,6 +168,8 @@ const serializeUserData = (userData, isInitialCreate) => {
           classesTaken: toSafeNumber(course.classesTaken),
           classesAttended: toSafeNumber(course.classesAttended),
           skippedDates: Array.isArray(course.skippedDates) ? course.skippedDates : [],
+          missedDates: Array.isArray(course.missedDates) ? course.missedDates : [],
+          cancelledDates: Array.isArray(course.cancelledDates) ? course.cancelledDates : [],
           lastUpdated: normalizeDateValue(course.lastUpdated),
         }))
       : [],
@@ -496,6 +508,100 @@ export function useUserSync(user, theme, isAdmin = false) {
     });
   }, []);
 
+  // Bulk attendance update from the Dashboard's Update Attendance strip.
+  // Accepts an array of { courseId, classesTaken, classesAttended, missedDates? }
+  // entries; writes new totals, appends precise missed dates, and emits one
+  // snapshot per course (deduped per-day by saveAttendanceSnapshot).
+  const updateBulkAttendance = useCallback(async entries => {
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return;
+    }
+    const timestamp = new Date();
+    const isoNow = timestamp.toISOString();
+
+    setUserData(previousValue => {
+      if (!previousValue) {
+        return previousValue;
+      }
+
+      const entryByCourse = new Map();
+      entries.forEach(entry => {
+        if (entry?.courseId) {
+          entryByCourse.set(entry.courseId, entry);
+        }
+      });
+
+      const nextCourses = previousValue.courses.map(course => {
+        const entry = entryByCourse.get(course.id);
+        if (!entry) {
+          return course;
+        }
+        const safeTaken = toSafeNumber(entry.classesTaken);
+        const safeAttended = Math.min(toSafeNumber(entry.classesAttended), safeTaken);
+        const newMissed = Array.isArray(entry.missedDates) ? entry.missedDates : [];
+        const newCancelled = Array.isArray(entry.cancelledDates) ? entry.cancelledDates : [];
+        const mergedMissed = Array.from(
+          new Set([...(course.missedDates || []), ...newMissed])
+        );
+        const mergedCancelled = Array.from(
+          new Set([...(course.cancelledDates || []), ...newCancelled])
+        );
+        return {
+          ...course,
+          classesTaken: safeTaken,
+          classesAttended: safeAttended,
+          missedDates: mergedMissed,
+          cancelledDates: mergedCancelled,
+          lastUpdated: timestamp,
+        };
+      });
+
+      const existingSnapshots = previousValue.attendanceSnapshots || [];
+      const todayDateStr = timestamp.toDateString();
+      let snapshots = existingSnapshots.slice();
+
+      entries.forEach(entry => {
+        if (!entry?.courseId) return;
+        const safeTaken = toSafeNumber(entry.classesTaken);
+        const safeAttended = Math.min(toSafeNumber(entry.classesAttended), safeTaken);
+        const pct = safeTaken > 0 ? (safeAttended / safeTaken) * 100 : 0;
+        const newSnapshot = normalizeSnapshot({
+          id: `snapshot-${entry.courseId}-${timestamp.getTime()}`,
+          courseId: entry.courseId,
+          attendancePercentage: Number(pct.toFixed(1)),
+          classesTaken: safeTaken,
+          classesAttended: safeAttended,
+          riskScore: 0,
+          riskLabel: 'Safe',
+          createdAt: isoNow,
+        });
+
+        let replaced = false;
+        snapshots = snapshots.map(existing => {
+          if (
+            existing.courseId === newSnapshot.courseId &&
+            new Date(existing.createdAt).toDateString() === todayDateStr
+          ) {
+            replaced = true;
+            return newSnapshot;
+          }
+          return existing;
+        });
+        if (!replaced) {
+          snapshots.push(newSnapshot);
+        }
+      });
+
+      return {
+        ...previousValue,
+        courses: nextCourses,
+        attendanceSnapshots: snapshots.slice(-120),
+        lastCheckedAt: isoNow,
+        lastUpdated: timestamp,
+      };
+    });
+  }, []);
+
   const updateAdminDraft = useCallback(async adminDraft => {
     const timestamp = new Date();
 
@@ -519,6 +625,7 @@ export function useUserSync(user, theme, isAdmin = false) {
     userData,
     saveSlot,
     updateAttendance,
+    updateBulkAttendance,
     updateSkips,
     updateTheme,
     deleteCourse,

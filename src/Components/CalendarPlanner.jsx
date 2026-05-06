@@ -4,6 +4,25 @@ import { formatDate } from '../utils/dateUtils.js';
 
 const BLOCKING_EVENT_TYPES = new Set(['holiday', 'exam', 'other']);
 
+// Type-tinted underline accents for academic events. Sits as a 2px bar
+// at the bottom of each cell — far more legible than the old grey dot,
+// and lets you tell holiday from exam from academic marker at a glance.
+// Hues match the SlotHeatmap palette so the legend reads consistently
+// across both views (purple = holiday, blue = exam, accent = academic).
+const eventAccent = type => {
+  switch (type) {
+    case 'holiday':
+      return 'var(--purple)';
+    case 'exam':
+    case 'other':
+      return 'var(--blue)';
+    case 'academic':
+      return 'var(--accent)';
+    default:
+      return 'var(--text-muted)';
+  }
+};
+
 const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, eventsMap }) => {
   const [viewDate, setViewDate] = useState(new Date());
   const skippedDateSet = new Set(skippedDates);
@@ -19,40 +38,45 @@ const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, even
   const calendarDays = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
   return (
-    <div className="border-y border-border-faint py-5">
-      <p className="mb-4 text-sm text-text-muted">
-        Select a future class date to mark it as a planned skip.
+    <div className="space-y-3">
+      <p className="text-xs text-text-muted">
+        Tap a future class date to mark it as a planned skip.
       </p>
 
-      <div className="mb-5 flex items-center justify-between">
+      <div className="flex items-center justify-between">
         <button
           type="button"
           onClick={() => handleMonthNav(-1)}
-          className="p-2 text-text-muted transition-colors hover:bg-elevated hover:text-text-primary"
+          aria-label="Previous month"
+          className="rounded p-1.5 text-text-muted transition-colors hover:bg-elevated hover:text-text-primary"
         >
-          <ChevronLeft size={16} />
+          <ChevronLeft size={14} />
         </button>
-        <h3 className="text-base font-semibold text-text-primary">
+        <h3 className="text-sm font-semibold text-text-primary">
           {viewDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
         </h3>
         <button
           type="button"
           onClick={() => handleMonthNav(1)}
-          className="p-2 text-text-muted transition-colors hover:bg-elevated hover:text-text-primary"
+          aria-label="Next month"
+          className="rounded p-1.5 text-text-muted transition-colors hover:bg-elevated hover:text-text-primary"
         >
-          <ChevronRight size={16} />
+          <ChevronRight size={14} />
         </button>
       </div>
 
-      <div className="mb-3 grid grid-cols-7 gap-1 text-center">
+      <div className="grid grid-cols-7 gap-1 text-center">
         {weekdayLabels.map(day => (
-          <div key={day} className="eyebrow-label py-2 text-center">
+          <div
+            key={day}
+            className="py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-text-muted"
+          >
             {day}
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-1.5">
+      <div className="grid grid-cols-7 gap-1">
         {Array.from({ length: firstDayOfWeek }).map((_, i) => (
           <div key={`empty-${i}`} />
         ))}
@@ -67,31 +91,40 @@ const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, even
           const isClickable = isSelectable && !isBlocked;
 
           let dayClass =
-            'relative flex h-11 items-center justify-center border border-transparent text-sm transition-colors duration-150';
-          let title = event ? event.name : 'Click to plan a skip';
+            'group relative flex h-9 items-center justify-center rounded text-xs transition-colors duration-150';
+          let title = event ? event.name : 'Tap to plan a skip';
 
           if (isSkipped) {
-            dayClass += ' bg-danger-dim text-danger';
-            title = 'Click to un-skip';
-          } else if (isBlocked) {
-            dayClass += ' text-text-muted line-through';
+            // Confirmed planned-skip — highest visual weight on the page.
+            dayClass += ' bg-danger text-white font-semibold';
+            title = `${dateStr} — planned skip · tap to remove`;
           } else if (isClickable) {
-            dayClass += ' cursor-pointer font-medium text-text-primary hover:bg-elevated';
+            dayClass += ' cursor-pointer text-text-primary hover:bg-elevated hover:font-medium';
+          } else if (isBlocked) {
+            // Subtle fade — the date is still readable for context, but
+            // signals "not selectable" without the noisy strikethrough.
+            dayClass += ' text-text-muted opacity-50';
           } else {
-            dayClass += ' text-text-secondary';
+            // Past dates that aren't class days, or non-class weekdays.
+            dayClass += ' text-text-muted opacity-60';
           }
 
-          if (isToday) {
-            dayClass += ' border-accent bg-[var(--accent-glow)] text-text-primary';
+          // Today: clean ring outline that coexists with whatever fill
+          // the cell already has (planned-skip, blocked, etc).
+          if (isToday && !isSkipped) {
+            dayClass += ' ring-1 ring-accent';
           }
 
-          let eventDot = null;
+          // Event accent: 2px coloured bar pinned to the bottom of the
+          // cell. Replaces the old generic grey dot — type-tinted so a
+          // glance distinguishes holiday from exam from academic marker.
+          let eventBar = null;
           if (event && !isSkipped) {
-            eventDot = (
+            eventBar = (
               <span
-                className={`absolute bottom-1.5 h-1 w-1 rounded-full ${
-                  event.type === 'holiday' ? 'bg-warning' : 'bg-text-muted'
-                }`}
+                className="absolute inset-x-1 bottom-0.5 h-[2px] rounded-full"
+                style={{ backgroundColor: eventAccent(event.type) }}
+                aria-hidden="true"
               />
             );
           }
@@ -102,14 +135,15 @@ const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, even
               type="button"
               title={title}
               onClick={() => {
-                if (isClickable) {
+                if (isClickable || isSkipped) {
                   onDateToggle(dateStr);
                 }
               }}
               className={dayClass}
+              disabled={!isClickable && !isSkipped}
             >
               {day}
-              {eventDot}
+              {eventBar}
             </button>
           );
         })}
@@ -119,10 +153,10 @@ const CalendarPlanner = ({ classDates, onDateToggle, skippedDates, onClear, even
         <button
           type="button"
           onClick={onClear}
-          className="mt-4 ml-auto flex items-center gap-1 text-xs text-danger transition-colors hover:text-danger"
+          className="ml-auto flex items-center gap-1 text-[11px] text-text-muted transition-colors hover:text-danger"
         >
-          <Trash2 size={14} />
-          Clear Selections
+          <Trash2 size={11} />
+          Clear all
         </button>
       ) : null}
     </div>

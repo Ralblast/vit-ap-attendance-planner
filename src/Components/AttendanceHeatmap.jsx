@@ -100,25 +100,26 @@ const buildMatrix = ({ courses, snapshots, semesterData }) => {
       weeklyValues[weekIndex] = entry.pct;
     });
 
-    // Forward-fill: between snapshots the attendance % doesn't change, so
-    // an empty cell after the first reading should inherit the previous
-    // value rather than read as "no data". Cells before the first reading
-    // stay null (course wasn't being tracked yet).
-    let lastSeen = null;
-    const filledValues = weeklyValues.map(value => {
-      if (value !== null) {
-        lastSeen = value;
-        return value;
-      }
-      return lastSeen;
-    });
+    // Honest rendering: weeks without their own snapshot stay null. We no
+    // longer forward-fill — an empty week visibly reads as no-data so the
+    // student can see exactly when they did and didn't log. Cells flagged
+    // `inferred` (false here) reserved for future per-week interpolation
+    // if we want it later; for now the field exists so the renderer can
+    // tell sharp data from inferred data.
+    const cells = weeklyValues.map(value =>
+      value === null ? { value: null, inferred: false } : { value, inferred: false }
+    );
 
-    const finalPct = filledValues[filledValues.length - 1];
+    // The "final %" displayed in the row trailer should reflect the latest
+    // reading available — not necessarily the last week of the semester.
+    const lastReading = courseSnapshots.length
+      ? courseSnapshots[courseSnapshots.length - 1].pct
+      : null;
 
     return {
       course,
-      values: filledValues,
-      finalPct,
+      cells,
+      finalPct: lastReading,
     };
   });
 
@@ -181,9 +182,9 @@ const AttendanceHeatmap = ({ courses = [], snapshots = [], semesterData }) => {
                     </span>
                   </div>
 
-                  {row.values.map((value, weekIndex) => {
-                    const bucket = bucketFor(value);
-                    const isEmpty = value === null;
+                  {row.cells.map((cell, weekIndex) => {
+                    const bucket = bucketFor(cell.value);
+                    const isEmpty = cell.value === null;
                     const isHover =
                       hover &&
                       hover.courseId === row.course.id &&
@@ -193,17 +194,17 @@ const AttendanceHeatmap = ({ courses = [], snapshots = [], semesterData }) => {
                         key={weekIndex}
                         type="button"
                         onMouseEnter={() =>
-                          setHover({ courseId: row.course.id, weekIndex, value })
+                          setHover({ courseId: row.course.id, weekIndex, value: cell.value })
                         }
                         onMouseLeave={() => setHover(null)}
                         onFocus={() =>
-                          setHover({ courseId: row.course.id, weekIndex, value })
+                          setHover({ courseId: row.course.id, weekIndex, value: cell.value })
                         }
                         onBlur={() => setHover(null)}
                         aria-label={
                           isEmpty
                             ? `${row.course.courseName} week ${weekIndex + 1}: no reading`
-                            : `${row.course.courseName} week ${weekIndex + 1}: ${value.toFixed(1)}%`
+                            : `${row.course.courseName} week ${weekIndex + 1}: ${cell.value.toFixed(1)}%`
                         }
                         style={{
                           width: cellSize,
@@ -213,7 +214,7 @@ const AttendanceHeatmap = ({ courses = [], snapshots = [], semesterData }) => {
                             : bucket?.fill || 'var(--bg-elevated)',
                           borderRadius: 2,
                           border: isEmpty
-                            ? '1px solid var(--border-faint)'
+                            ? '1px dashed var(--border-faint)'
                             : `1px solid ${bucket?.fill || 'var(--border-default)'}`,
                           opacity: isHover ? 0.85 : 1,
                           cursor: 'pointer',
@@ -259,11 +260,11 @@ const AttendanceHeatmap = ({ courses = [], snapshots = [], semesterData }) => {
             className="inline-block h-2.5 w-2.5"
             style={{
               backgroundColor: 'transparent',
-              border: '1px solid var(--border-faint)',
+              border: '1px dashed var(--border-faint)',
               borderRadius: 2,
             }}
           />
-          No reading
+          No reading (week not logged)
         </div>
         {hover && Number.isFinite(hover.value) ? (
           <span className="ml-auto font-mono text-text-secondary">

@@ -6,14 +6,28 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const BLOCKING_TYPES = new Set(['holiday', 'exam', 'other']);
 
-// Distinct hues so the three event states are unambiguous at 14px.
+// Distinct hues so the event states are unambiguous at 14px.
 // Today is rendered as an overlay ring on top of whatever the cell already
 // is, so it can coexist with planned-skip / past / future / exam / holiday.
+//
+// `past` here means a past class day where we don't have per-day signal —
+// the renderer tints it between accent (attended) and red (missed) based
+// on the course's ambiguity probability. `missed` is a confirmed miss
+// from the student's precise-skip picker.
+// Five visually distinct hues so the legend reads cleanly at 14px:
+//   green  → past attended            (positive, student-side)
+//   red    → missed (logged)          (alarm, student-side)
+//   amber  → planned skip             (caution, student-side intent)
+//   purple → holiday                  (neutral institutional event)
+//   blue   → exam / break             (institutional event)
+// Plus grey for cancelled (didn't happen) and outline for future/off-class.
 const STATUS_STYLES = {
   past: { bg: 'var(--accent)', border: 'var(--accent)' },
+  missed: { bg: 'var(--red)', border: 'var(--red)' },
+  cancelled: { bg: 'var(--text-muted)', border: 'var(--text-muted)' },
   future: { bg: 'transparent', border: 'var(--accent-dim)' },
   'planned-skip': { bg: 'var(--amber)', border: 'var(--amber)' },
-  holiday: { bg: 'var(--red)', border: 'var(--red)' },
+  holiday: { bg: 'var(--purple)', border: 'var(--purple)' },
   exam: { bg: 'var(--blue)', border: 'var(--blue)' },
   'off-class': { bg: 'transparent', border: 'var(--border-faint)' },
   empty: { bg: 'transparent', border: 'transparent' },
@@ -21,6 +35,8 @@ const STATUS_STYLES = {
 
 const STATUS_LABELS = {
   past: 'Past class',
+  missed: 'Missed (logged)',
+  cancelled: 'Cancelled',
   future: 'Upcoming class',
   'planned-skip': 'Planned skip',
   holiday: 'Holiday',
@@ -107,13 +123,19 @@ const buildMatrix = ({ slotDays, course, semesterData, today }) => {
         ? new Date(semesterData.lastInstructionalDay)
         : null;
 
-  if (!start || !end || !Array.isArray(slotDays) || slotDays.length === 0) {
+  // Allow empty slotDays — the master Semester Calendar uses this to
+  // render an event-only view ("No slot — events only" picker option).
+  // Holidays/exams still light up; nothing is highlighted as a class day.
+  if (!start || !end) {
     return null;
   }
+  const safeSlotDays = Array.isArray(slotDays) ? slotDays : [];
 
   const blocked = buildBlockedMap(semesterData.academicCalendar);
   const annotations = buildAnnotationMap(semesterData.academicCalendar);
   const planned = new Set(course?.skippedDates || []);
+  const missed = new Set(course?.missedDates || []);
+  const cancelled = new Set(course?.cancelledDates || []);
   const todayKey = formatDate(today);
 
   // Pad the matrix with ~4 weeks of empty cells on each side so the
@@ -133,6 +155,12 @@ const buildMatrix = ({ slotDays, course, semesterData, today }) => {
   let pastClassDays = 0;
   let futureClassDays = 0;
   let blockedClassDays = 0;
+  // Count past class days that are NOT planned-skip and NOT confirmed
+  // missed — these are the "ambiguous" cells whose colour will be
+  // probability-blended below to honestly reflect uncertainty about which
+  // specific past classes the student actually missed.
+  let ambiguousPastCells = 0;
+  let confirmedMissedInPast = 0;
 
   for (let week = 0; week < totalWeeks; week += 1) {
     const column = [];
@@ -141,7 +169,7 @@ const buildMatrix = ({ slotDays, course, semesterData, today }) => {
       cellDate.setDate(cellDate.getDate() + week * 7 + weekday);
       const cellKey = formatDate(cellDate);
       const inSemester = cellDate >= start && cellDate <= end;
-      const isClassDayBySlot = slotDays.includes(cellDate.getDay());
+      const isClassDayBySlot = safeSlotDays.includes(cellDate.getDay());
       const blockingEvent = blocked.get(cellKey);
 
       let status = 'empty';
@@ -150,18 +178,40 @@ const buildMatrix = ({ slotDays, course, semesterData, today }) => {
       const annotationEvent = annotations.get(cellKey);
 
       if (inSemester) {
-        if (isClassDayBySlot && blockingEvent) {
+        // Holidays/exams light up regardless of slot — events affect the
+        // semester whether or not your specific slot meets that day. This
+        // also lets the "No slot — events only" view in the Semester
+        // Calendar show every event without needing a slot to be picked.
+        if (blockingEvent) {
           status = blockingEvent.type === 'exam' || blockingEvent.type === 'other' ? 'exam' : 'holiday';
           title = `${cellKey} — ${blockingEvent.name}`;
-          blockedClassDays += 1;
+          if (isClassDayBySlot) blockedClassDays += 1;
+        } else if (isClassDayBySlot && cancelled.has(cellKey)) {
+          // Cancelled classes existed in the slot calendar but didn't
+          // happen — exclude from total/past/future class counts so
+          // attendance math stays honest.
+          status = 'cancelled';
+          title = `${cellKey} — ${STATUS_LABELS[status]}`;
         } else if (isClassDayBySlot) {
           totalClassDays += 1;
           const isPlanned = planned.has(cellKey);
+          const isMissed = missed.has(cellKey);
           const isPast = cellKey < todayKey;
-          if (isPlanned) {
+          // Structural mode: when no course context is provided, past
+          // class days have no per-day attendance signal. Render them as
+          // outlined ("future") cells so we don't fabricate green for
+          // days we know nothing about. Keeps the master Semester
+          // Calendar honest.
+          if (!course) {
+            status = 'future';
+          } else if (isPast && isMissed) {
+            status = 'missed';
+            confirmedMissedInPast += 1;
+          } else if (isPlanned) {
             status = 'planned-skip';
           } else if (isPast) {
             status = 'past';
+            ambiguousPastCells += 1;
           } else {
             status = 'future';
           }
@@ -178,9 +228,6 @@ const buildMatrix = ({ slotDays, course, semesterData, today }) => {
           if (annotationEvent) {
             title += ` · ${annotationEvent.name}`;
           }
-        } else if (blockingEvent) {
-          status = 'off-class';
-          title = `${cellKey} — ${blockingEvent.name}`;
         } else if (annotationEvent) {
           status = 'off-class';
           title = `${cellKey} — ${annotationEvent.name}`;
@@ -192,6 +239,24 @@ const buildMatrix = ({ slotDays, course, semesterData, today }) => {
       column.push({ key: cellKey, status, title, isToday });
     }
     cells.push(column);
+  }
+
+  // Compute the per-course ambiguity probability for past cells whose
+  // attended/missed state we don't know precisely. The math:
+  //   totalMissedSoFar  = classesTaken - classesAttended
+  //   confirmed misses  = confirmedMissedInPast (from missedDates picker)
+  //   unknown misses    = max(0, totalMissedSoFar - confirmedMissedInPast)
+  //   ambiguity prob.   = unknown misses / ambiguousPastCells   (clamped)
+  // Each ambiguous-past cell renders as a blend between accent (attended)
+  // and red (missed) at this probability — visually communicating that
+  // we know how many were missed but not which ones.
+  let ambiguityProbability = 0;
+  if (course && ambiguousPastCells > 0) {
+    const taken = Number(course.classesTaken) || 0;
+    const attended = Number(course.classesAttended) || 0;
+    const totalMissed = Math.max(0, taken - attended);
+    const unknownMissed = Math.max(0, totalMissed - confirmedMissedInPast);
+    ambiguityProbability = Math.min(1, unknownMissed / ambiguousPastCells);
   }
 
   // Flag the first column of each calendar month so the renderer can
@@ -218,6 +283,9 @@ const buildMatrix = ({ slotDays, course, semesterData, today }) => {
     pastClassDays,
     futureClassDays,
     blockedClassDays,
+    ambiguityProbability,
+    confirmedMissedInPast,
+    ambiguousPastCells,
   };
 };
 
@@ -335,12 +403,22 @@ const SlotHeatmap = ({
                 >
                   {column.map(cell => {
                     const style = STATUS_STYLES[cell.status];
+                    // Probability-blend: ambiguous past cells overlay a red
+                    // wash whose opacity equals the ambiguity probability.
+                    // 0 → fully accent (attended). 1 → fully red (missed).
+                    // 0.4 → 40% red over accent → visibly faded red.
+                    const isAmbiguousPast =
+                      cell.status === 'past' && matrix.ambiguityProbability > 0;
+                    const ambiguousTitle = isAmbiguousPast
+                      ? `${cell.title} · ~${Math.round(matrix.ambiguityProbability * 100)}% chance missed`
+                      : cell.title;
                     return (
                       <div
                         key={cell.key}
-                        onMouseEnter={() => setHoverTitle(cell.title)}
+                        onMouseEnter={() => setHoverTitle(ambiguousTitle)}
                         onMouseLeave={() => setHoverTitle(null)}
                         style={{
+                          position: 'relative',
                           width: cellSize,
                           height: cellSize,
                           backgroundColor: style.bg,
@@ -353,7 +431,20 @@ const SlotHeatmap = ({
                             ? '0 0 0 2px var(--bg-base), 0 0 0 3.5px var(--accent)'
                             : undefined,
                         }}
-                      />
+                      >
+                        {isAmbiguousPast ? (
+                          <span
+                            aria-hidden="true"
+                            style={{
+                              position: 'absolute',
+                              inset: 0,
+                              backgroundColor: 'var(--red)',
+                              opacity: matrix.ambiguityProbability,
+                              borderRadius: 1,
+                            }}
+                          />
+                        ) : null}
+                      </div>
                     );
                   })}
                 </div>
@@ -365,7 +456,7 @@ const SlotHeatmap = ({
 
       {showLegend ? (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[10px] text-text-muted">
-          {['past', 'future', 'planned-skip', 'holiday', 'exam'].map(key => {
+          {['past', 'missed', 'cancelled', 'future', 'planned-skip', 'holiday', 'exam'].map(key => {
             const style = STATUS_STYLES[key];
             return (
               <div key={key} className="flex items-center gap-1.5">

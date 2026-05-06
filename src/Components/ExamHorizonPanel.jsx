@@ -1,7 +1,9 @@
 import React, { useMemo } from 'react';
 import { motion as Motion } from 'framer-motion';
-import { ChevronRight, Clock } from 'lucide-react';
+import { ChevronRight, Clock, Plus, Trash2 } from 'lucide-react';
 
+import StatusGlyph from './StatusGlyph.jsx';
+import UpdateAttendanceStrip from './UpdateAttendanceStrip.jsx';
 import { calculateAttendanceAnalytics } from '../utils/attendanceAnalytics.js';
 import { daysUntil, getNextCheckpoint } from '../utils/projectionHorizons.js';
 import { MIN_ATTENDANCE } from '../data/constants.js';
@@ -37,7 +39,7 @@ const formatLastUpdated = lastUpdated => {
 // upcoming exam-eligibility checkpoint. Pure presentation: all math is
 // delegated to calculateAttendanceAnalytics so it stays consistent with
 // the per-course planner view.
-const ExamHorizonPanel = ({ courses = [], snapshotsByCourse = {}, semesterData, onOpenCourse }) => {
+const ExamHorizonPanel = ({ courses = [], snapshotsByCourse = {}, semesterData, onOpenCourse, onAddCourse, onDeleteCourse, onBulkUpdate }) => {
   const checkpoint = useMemo(() => getNextCheckpoint(semesterData), [semesterData]);
   const days = checkpoint ? daysUntil(checkpoint.date) : null;
   const isFinalOutcome = checkpoint?.isPast;
@@ -99,8 +101,24 @@ const ExamHorizonPanel = ({ courses = [], snapshotsByCourse = {}, semesterData, 
             )}
           </h2>
         </div>
-        <p className="text-sm text-text-secondary">{summary}</p>
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <p className="text-sm text-text-secondary">{summary}</p>
+          {onAddCourse ? (
+            <button type="button" onClick={onAddCourse} className="primary-button">
+              <Plus size={16} />
+              Add Course
+            </button>
+          ) : null}
+        </div>
       </div>
+
+      {onBulkUpdate ? (
+        <UpdateAttendanceStrip
+          courses={courses}
+          semesterData={semesterData}
+          onBulkUpdate={onBulkUpdate}
+        />
+      ) : null}
 
       <ul className="mt-4 divide-y divide-border-faint">
         {rows.map(({ course, analytics, isOnTrack }) => {
@@ -109,62 +127,80 @@ const ExamHorizonPanel = ({ courses = [], snapshotsByCourse = {}, semesterData, 
             ? course.skippedDates.length
             : 0;
           const verdictTone = isOnTrack ? 'text-success' : 'text-danger';
-          const verdictText = isOnTrack ? '✅ on track' : '⚠ below 75%';
+          const verdictGlyphTone = isOnTrack ? 'success' : 'warning';
+          const verdictLabel = isOnTrack ? 'on track' : 'below 75%';
           return (
-            <li key={course.id}>
-              <button
-                type="button"
-                onClick={() => onOpenCourse?.(course)}
-                className="flex w-full items-center gap-4 py-3 text-left transition-colors hover:bg-elevated"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-text-primary">
-                    {course.courseName || course.slotLabel}
-                  </p>
-                  <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-text-muted">
-                    <span className="font-mono">{course.slotLabel}</span>
-                    {plannedSkipCount > 0 ? (
-                      <>
-                        <span aria-hidden="true">·</span>
-                        <span>
-                          {plannedSkipCount} planned skip{plannedSkipCount === 1 ? '' : 's'}
-                        </span>
-                      </>
-                    ) : null}
-                    {lastUpdated ? (
-                      <>
-                        <span aria-hidden="true">·</span>
-                        <span className="inline-flex items-center gap-1">
-                          <Clock size={10} /> {lastUpdated}
-                        </span>
-                      </>
-                    ) : null}
-                  </p>
-                </div>
+            <li key={course.id} className="group">
+              <div className="flex items-stretch transition-colors hover:bg-elevated">
+                <button
+                  type="button"
+                  onClick={() => onOpenCourse?.(course)}
+                  className="flex flex-1 items-center gap-4 py-3 text-left"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium text-text-primary">
+                      {course.courseName || course.slotLabel}
+                    </p>
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-text-muted">
+                      <span className="font-mono">{course.slotLabel}</span>
+                      {plannedSkipCount > 0 ? (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span>
+                            {plannedSkipCount} planned skip{plannedSkipCount === 1 ? '' : 's'}
+                          </span>
+                        </>
+                      ) : null}
+                      {lastUpdated ? (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span className="inline-flex items-center gap-1">
+                            <Clock size={10} /> {lastUpdated}
+                          </span>
+                        </>
+                      ) : null}
+                    </p>
+                  </div>
 
-                <div className="hidden shrink-0 text-right sm:block">
-                  <p className="font-mono text-sm text-text-secondary">
-                    <span className="text-text-muted">{analytics.currentAttendance.toFixed(1)}%</span>
-                    <span className="mx-1.5 text-text-muted">→</span>
-                    <span className={`font-semibold ${verdictTone}`}>
-                      {analytics.projectedAttendance.toFixed(1)}%
-                    </span>
-                  </p>
-                  <p className="text-[10px] uppercase tracking-wider text-text-muted">
-                    now → at {checkpoint.label}
-                  </p>
-                </div>
+                  <div className="hidden shrink-0 text-right sm:block">
+                    <p className="font-mono text-sm text-text-secondary">
+                      <span className="text-text-muted">{analytics.currentAttendance.toFixed(1)}%</span>
+                      <span className="mx-1.5 text-text-muted">→</span>
+                      <span className={`font-semibold ${verdictTone}`}>
+                        {analytics.projectedAttendance.toFixed(1)}%
+                      </span>
+                    </p>
+                    <p className="text-[10px] uppercase tracking-wider text-text-muted">
+                      now → at {checkpoint.label}
+                    </p>
+                  </div>
 
-                <div className={`shrink-0 text-xs font-medium ${verdictTone}`}>
-                  {verdictText}
-                </div>
+                  <div
+                    className={`inline-flex shrink-0 items-center gap-1 text-xs font-medium ${verdictTone}`}
+                  >
+                    <StatusGlyph tone={verdictGlyphTone} size={11} />
+                    {verdictLabel}
+                  </div>
 
-                <ChevronRight
-                  size={14}
-                  className="shrink-0 text-text-muted"
-                  aria-hidden="true"
-                />
-              </button>
+                  <ChevronRight
+                    size={14}
+                    className="shrink-0 text-text-muted"
+                    aria-hidden="true"
+                  />
+                </button>
+
+                {onDeleteCourse ? (
+                  <button
+                    type="button"
+                    onClick={() => onDeleteCourse(course.id)}
+                    className="px-2 text-text-muted opacity-0 transition-opacity hover:text-danger focus:opacity-100 group-hover:opacity-100"
+                    aria-label={`Delete ${course.courseName || course.slotLabel}`}
+                    title="Delete course"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                ) : null}
+              </div>
 
               <div className="block pb-2 text-right font-mono text-[11px] text-text-secondary sm:hidden">
                 <span className="text-text-muted">{analytics.currentAttendance.toFixed(1)}%</span>
