@@ -15,17 +15,21 @@ The app supports a fully functional guest mode (no account required) for one-off
 - Honors the official academic calendar — holidays, exam blocks (CAT-1, CAT-2, FAT), and "other" event types automatically remove blocked dates from the class-day list.
 - Handles single-date events (`date`) and multi-day ranges (`startDate` / `endDate`) uniformly.
 - Supports compound slot strings like `A1+TA1+TAA1`, deriving the union of weekday meetings from the slot-days map.
+- **`getClassDatesBetween(slotDays, calendar, fromDate, toDate)`** — companion helper added this iteration. Enumerates slot class days in any historical window (exclusive of `fromDate`, inclusive of `toDate`), honoring blocked dates the same way. Drives the auto-fill in the Update Attendance strip and the candidate-date list shown to the precise-skip + cancelled-class chip pickers.
 
 ### Risk metrics (per course)
-Computed live in the planner and dashboard:
+Computed live in the planner and dashboard, exposed on the `analytics` object the engine returns:
 - **Current attendance** — `(attended / taken) × 100`.
-- **Final projection** — projected attendance assuming the student attends every remaining class except already planned skips.
-- **Remaining classes** — unblocked class days left in the semester for that slot.
+- **Projected attendance** — projected % at the chosen horizon (semester end, or any checkpoint when the planner overrides `lastInstructionalDay`).
+- **Remaining classes** — unblocked class days left for that slot in the active window.
 - **Safe skips left** — how many additional classes the student can miss while still ending ≥ 75 %.
-- **Recovery classes needed** — minimum consecutive classes the student must attend to climb back above the threshold (capped at 300 probes; flagged "Impossible" if not feasible within remaining classes).
+- **Recovery classes needed** — minimum consecutive classes the student must attend to climb back above the threshold (capped at 300 probes; `isRecoveryImpossible: true` when not feasible within remaining classes).
 - **Planned skip count** — number of future class dates the user has marked as skips.
 - **Risk score (0–100)** — weighted composite of projection gap, threshold deficit, negative skip buffer, recovery pressure, planned-skip penalty, and trend direction.
-- **Risk label** — `Safe` / `Warning` / `Critical`, chosen as the worse of (a) a formula label based on thresholds and risk score, and (b) an `ml-cart` decision-tree classifier trained on hand-labeled examples.
+- **Risk label** — `Safe` / `Warning` / `Critical`, chosen as the worse of (a) a formula label based on thresholds and risk score, and (b) an `ml-cart` decision-tree classifier trained on hand-labeled examples (the `worst-label-wins` defensive ensemble).
+- **`formulaLabel` and `classifierLabel`** — exposed separately this iteration so the "Why this verdict?" panel in the planner can show whether the two methods agreed or diverged.
+- **`classifierFeatures`** — the five live values fed to the CART tree for this course (`current %, projected %, skip buffer, recovery needed, trend bucket`). Surfaced in the Why panel so the student sees exactly what the classifier saw.
+- **`riskBreakdown`** — the six signed component contributions to the formula score (`projectionPenalty`, `thresholdDeficitPenalty`, `skipBufferPenalty`, `recoveryPenalty`, `plannedSkipPenalty`, `trendAdjustment`). Sum equals `riskScore`. Surfaced in the Why panel so the student can audit the math.
 
 ### Recommendation engine
 Generates a context-aware recommendation per course (e.g. "Attend the next 3 classes before planning any skip", "Cancel planned skips and rebuild the buffer", or "You have a safe buffer of 2 skips"). Used both on-screen and inside email/Telegram alerts.
@@ -51,7 +55,7 @@ A statistical forecaster runs once a course has at least **4 saved attendance sn
 - **95 % confidence band** — derived from the residual standard deviation (z = 1.96), giving a low/high range.
 - **Slope per day** — daily drift in attendance, in %/day.
 - **Trajectory direction** — improving / stable / declining (slope thresholds ±0.35 %/day).
-- **Sample-size gating** — until 4 snapshots exist, the UI shows progress (e.g. "2/4 snapshots"); the forecast simply does not render.
+- **Sample-size gating** — until 4 snapshots exist, the UI shows progress (e.g. "2/4 snapshots") and the planner's forecast row reads *"Save N more attendance snapshots to unlock the predicted % with confidence interval"* — honest about the floor instead of hiding the row entirely. **Guest mode** swaps the forecast row for a sign-in nudge with a working `Sign in →` button (the regression needs persisted snapshot history).
 
 ---
 
@@ -76,30 +80,51 @@ The selector lives inside an animated modal launched from the dashboard "Add cou
 ## 4. Dashboards & Screens
 
 ### Landing screen (guests)
-Full-bleed hero with a static "Live Risk Preview" card and two CTAs: **Start as guest** (jump to course setup) and **Sign in** (open auth modal).
+Full-bleed hero with three discoverable CTAs (`Start as guest`, `Sign in`, `Browse the semester calendar →`) and a redesigned **Live Risk Preview** card on the right. The preview shows a sample slot (`A1+TA1 · 4 credits · snapshot Apr 12, 2026`) with a big `73.8%` display, a verdict line (`Warning · 4 classes from recovery`), a three-row mini-table of projections at CAT-1 / CAT-2 / FAT (passed / on-track / at-risk), and a one-line statistical-forecast row with 95% CI and trajectory direction. Below the CTAs sits a small credibility line that names the three checkpoints, the threshold, and the freshers disclaimer in one sentence. Below the hero, a **"What's inside"** three-feature row (slot-aware schedule · forecast at every checkpoint · weekly alerts) gives a scannable preview of what guests unlock when they sign in.
 
 ### Dashboard screen (signed-in)
-* **Exam Horizon panel (top)** — the new headline section. Picks the next upcoming exam-eligibility checkpoint (CAT-1 / CAT-2 / FAT) from the env dates with calendar-event fallback. Renders one row per course showing `current% → projected%` at that checkpoint with a green ✅ on-track or red ⚠ below-75% verdict. Each row also surfaces planned-skip count and a "updated N days ago" hint so the student knows the projection is fresh. Below the rows, a one-line recovery action per at-risk course ("attend the next 3 classes to clear CAT-1") — switches to an honest "recovery isn't possible within the remaining schedule" copy when the deficit can't be closed. Whole row is clickable and opens the per-course planner. Auto-rolls to the next checkpoint once one passes; falls back to a "Final outcome" view at semester end.
-- Highest-risk course callout with its recommendation.
-- Animated semester-progress bar (commencement → last instructional day) with `% of semester elapsed`.
-* **Tracked Courses card grid** — replaces the old projection/risk-table. 3-column responsive grid (1/2/3 cards on mobile/tablet/desktop). Each card is fully clickable: status dot (green/amber/red by risk classification), course name, slot code in mono pill, current attendance % as the headline number. Delete control fades in on hover only.
-- **Per-course mini heatmaps** — one `SlotHeatmap` per saved course, showing each weekday's status (past class, upcoming, planned skip, holiday, exam, off-class) with a single shared legend at the top.
+* **Exam Horizon panel (top)** — the headline section. Picks the next upcoming exam-eligibility checkpoint (CAT-1 / CAT-2 / FAT) from the env dates with calendar-event fallback. The header surfaces the checkpoint label + countdown, the on-track summary (`X of Y on track for FAT`), and an inline `+ Add Course` button. Renders one row per course with `current% → projected%`, an inline verdict glyph (`StatusGlyph` SVG, no native emoji), planned-skip count, last-updated freshness, and an inline trash icon that fades in on hover. Below the rows, a one-line recovery action per at-risk course — switches to an honest "recovery isn't possible within the remaining schedule" copy when the deficit can't be closed.
+* **Update Attendance strip** — mounted directly inside the Exam Horizon panel header. Always-visible compact bar (`Last update: 13 days ago · 6 new class days`) that expands inline. The expanded form shows every course as a row with auto-filled `taken` (`lastTaken + classDaysSinceLastUpdate`) and auto-filled `attended` (`lastAttended + classDaysSinceLastUpdate`); the student adjusts down for any classes missed or cancelled. When `attended` is decreased below the auto-fill, an optional **precise-skip chip picker** appears with date chips for the candidate class days — tap each missed date to write to `missedDates[]`, or hit `skip this →` to save totals only. When `taken` is decreased, an optional **cancelled-class chip picker** behaves the same way and writes to `cancelledDates[]`. Both pickers are mutually exclusive (a date marked cancelled is removed from the missed candidates) and both have honest "skip this" escape hatches. One bulk save updates every changed course + writes one snapshot per course (deduped per-day) + appends precise dates if provided.
+- **Per-course mini heatmaps** below — one `SlotHeatmap` per saved course, full data (past attended / missed-logged / cancelled / planned-skip / holiday / exam / today / probability-blended ambiguity for unknown past) with a single shared legend at the top.
+- The pre-iteration `Tracked Courses` card grid is **gone** — its function (open / delete a course) is now inline on each Exam Horizon row, eliminating the redundant second course list.
 
 ### Planner view
-Full-detail view for a single course with:
-- Header with horizon switcher (CAT-1 / CAT-2 / FAT) and slot label.
-- 6-tile metric grid (current %, projected %, risk level, remaining classes, safe skips, recovery needed).
-- Forecast strip (predicted %, smoothed current, trajectory) when ≥4 snapshots exist.
+Full-detail view for a single course. Hero zone restructured around one horizon-aware projection table:
+- Header: back-to-dashboard link + course name + slot label.
+- **4 hero tiles** (was 6): Current · Projected · Risk · Skips Left Till {next-checkpoint}.
+  - **Projected** is a multi-row mini-table inside the tile listing CAT-1 / CAT-2 / FAT projected % with a `StatusGlyph` glyph per cell. Past checkpoints render `(passed)` muted. No more user-toggled horizon-switcher row.
+  - **Risk** is the ensemble verdict (Safe / Warning / Critical) with `StatusGlyph` glyph and a `▼ Why this verdict?` toggle (see below).
+  - **Skips Left** label dynamically reflects the next upcoming checkpoint (`Skips Left Till CAT-2` / `... Till FAT`). Number is scoped to that checkpoint's window, not the full semester.
+- **Inline recovery line** appears beneath the hero tiles only when `recoveryClassesNeeded > 0` (folds in the old "Recovery Needed" tile honestly).
+- **"Why this verdict?" expandable** under the Risk tile — the ML-surfacing panel. Three blocks: CART decision tree verdict + 5 input feature values, composite formula score with 6-component breakdown (projection penalty, threshold deficit, skip-buffer penalty, recovery pressure, planned-skip penalty, trend adjustment), and ensemble decision (`worst-label-wins`) with explanatory copy ("both methods agree" or "the more cautious label was kept"). Runs for both guests and signed-in users.
+- **Forecast row** collapsed from three cards into one line: predicted % + 95% CI + sample size + trajectory + slope. Below the four-snapshot floor it reads *"Save N more attendance snapshots to unlock the predicted % with confidence interval"*. **Guest mode** swaps the row for a sign-in nudge with a working `Sign in →` button.
 - Full-size `SlotHeatmap` for the active slot.
 - Two-column working area:
-  * **Attendance Input** — `Classes conducted so far` and `Classes attended` numeric inputs, validation against `attended ≤ taken`, a clear button, the live recommendation, and an inline "snapshots save automatically when attendance changes" note. The manual "Save trend snapshot" button is gone — snapshots are written automatically by the same effect that syncs `classesTaken`/`classesAttended` to Firestore (deduped per-course-per-day so rapid edits don't pollute the timeseries).
-  * **Skip Calendar** — a month-by-month calendar (`CalendarPlanner`) where future class dates can be toggled as planned skips. Holidays and exam-blocked dates are visually disabled and tagged with their event name; today is ringed with the accent color. The header shows a clickable **PlannedSkipPill** (`N planned ▼`) — click to expand a popover listing each planned-skip date with its weekday and ISO form. A green "Saved ✓" pulse flashes next to the pill whenever the skip set changes, so the student sees their toggle was acknowledged.
-- Auto-debounced sync of attendance and skip changes back to Firestore (skips during loading prevent ping-pong between local and remote state).
+  * **Attendance Input** — smaller-typography labels (eyebrow style) and tighter inputs. `Classes conducted so far` and `Classes attended` numeric fields, `attended ≤ taken` validation, a clear button, the live recommendation, and an inline auto-snapshot note.
+  * **Skip Calendar** — `CalendarPlanner` with the new visual makeover (no strikethrough, type-tinted event bars, ring today, smaller `h-9` cells) and the `PlannedSkipPill` (`N planned ▼`) with the saved-pulse indicator next to it.
+- Auto-debounced sync of attendance and skip changes back to Firestore.
 
 ### Insights screen
-- Behavioral analysis card — global trajectory (Trending Upward / Stable / Trending Downward), most-skipped weekday across all courses, and total skips burned to date.
-- Historical velocity list — one row per course with a built-in SVG sparkline of saved snapshots, current/projected percentages, forecast badge (sample size or predicted range), and risk score.
-* **Attendance week-by-week matrix** (`AttendanceHeatmap`) — replaces the old cross-course union grid. Now a per-course timeseries view: one row per tracked course, one column per ISO week of the semester, each cell colored by the attendance percentage at the end of that week (≥80% green / 70-79% amber / 60-69% orange / <60% red / faint outline = no reading). Forward-fills across weeks without a snapshot so gaps inherit the prior reading. Each row shows the final % plus a colored status dot. Hover any cell to see the exact week and percentage in the legend area.
+Restructured around six sections, each answering a discrete student question:
+
+1. **Overview** — eyebrow + headline ("Attendance risk, recovery pressure, and semester progress in one view"), Avg / Semester / Warning / Critical stats grid, Highest Risk callout with semester-progress bar, and a global trajectory readout (`Trending Upward / Stable / Trending Downward`).
+2. **Checkpoint Projections** — table with one row per course, columns CAT-1 / CAT-2 / FAT, each cell showing the projected % plus an inline `StatusGlyph` verdict. Past checkpoints render `(passed)` in muted text.
+3. **Skip Budget** — per-course bars showing used vs allowed skips, color-coded (green > 3 buffer, amber 1–3, red 0 or negative). One-line recovery cost or "recovery not possible" copy per course.
+4. **Forecast** — per-course card grid: `current → forecast %` with 95% CI inline, trajectory direction (▲ / — / ▼), and the existing SVG sparkline of saved snapshots.
+5. **Historical Pattern** — two clearly-labelled sub-blocks. **"Risk band per snapshot"** is one row per course of colored dots (one dot per snapshot, colored by which threshold band the reading fell into — green ≥75% / amber 70-74% / red below). **"Weekly attendance"** is the redesigned `AttendanceHeatmap` (forward-fill removed; empty weeks render as dashed-outline no-data cells).
+6. **The Engine** — three explainer cards laying out the algorithmic stack in plain prose: CART decision tree, statistical forecaster (linear regression + EWMA + 95% CI), and slot-aware enumeration. Surfaces what the engine actually does without burying it in code.
+
+The pre-iteration "most-skipped weekday" stat (computed from future planned skips, semantically meaningless), "total skips burned" single number (no context), and raw 0–100 risk score number are all dropped. The Safe / Warning / Critical label is kept everywhere it appeared.
+
+### Semester Calendar screen
+New top-level tab available to both signed-in users (via main nav) and guests (via the landing-page CTA `Browse the semester calendar →`).
+
+- Eyebrow + title ("Holidays, exams, and class days at a glance").
+- **Slot dropdown** grouped by year (2nd / 3rd / 4th); each option renders as `slot · credit category`. The first option is `No slot — events only` for a structural-only view that surfaces every academic event without slot context.
+- **Inline checkpoint summary** in the header — CAT-1 / CAT-2 / FAT dates, past ones marked `(passed)`.
+- **Full-size `SlotHeatmap` in structural mode** — past class days render as outline (no fabricated green), holidays in purple, exams in blue, today as ring overlay. When a real slot is picked, that slot's class days render as filled outline cells; "No slot" mode shows event blocks only.
+- **Upcoming events panel** (right side) — chronologically sorted next 6 academic-calendar events; ongoing events get an "ongoing" pill.
+- **"Plan skip" button** *(guests only)* next to the slot dropdown — navigates straight to the Planner with the chosen slot pre-selected. Disabled when "No slot" is selected. Removed from the signed-in view since signed-in users access skip planning per-course from the dashboard.
 
 ### Notifications screen
 * **Single master toggle "Weekly attendance alerts"** (iOS-style switch) — replaces the previous separate Risk Alerts and Weekly Summary checkboxes. Writes both legacy flags (`alertEnabled` and `weeklySummaryEnabled`) for back-compat so the cron logic doesn't change.
@@ -123,32 +148,49 @@ Full-detail view for a single course with:
 ### SlotHeatmap (per slot)
 - Compact and full sizes; cell sizes 11 px / 14 px.
 - Weekday rows (Mon–Sat) × week columns spanning the full semester.
-- Distinct hues for: past class (filled accent), upcoming class (outline), planned skip (amber), holiday (red), exam/break (blue), off-class (faint outline).
+- **Seven distinct cell states** with intentionally separated hues so the legend reads cleanly at 14 px:
+  - `past` — filled accent (green) · past class day, attended-by-default if not in `missedDates`
+  - `missed` — solid red · past class day confirmed missed via the precise-skip picker (`missedDates[]`)
+  - `cancelled` — slate-grey (`var(--text-muted)`) · class day on the slot calendar that didn't actually happen (`cancelledDates[]`); excluded from `totalClassDays`/`pastClassDays`/`futureClassDays` counts so attendance math stays honest
+  - `planned-skip` — amber · future date the student toggled into the skip set (`skippedDates[]`)
+  - `holiday` — **purple** (`var(--purple)`) · institutional closure; semantically distinct from `missed` (was previously the same red hue, which created an ambiguous warm cluster at small cell sizes)
+  - `exam` — blue · CAT-1 / CAT-2 / FAT exam blocks
+  - `future` / `off-class` — outline only · upcoming class day or non-class weekday
+- **Probability-blended ambiguity rendering** — past class days that are *not* in `missedDates` and *not* `planned-skip` may still be implicitly missed (the totals say so) without us knowing which dates. For each such ambiguous cell, the renderer overlays a red wash at opacity = `unknownMissed / ambiguousPastCells` (clamped 0–1). 0 → fully accent (attended). 1 → fully red (all missed). 0.4 → visibly faded red. The hover tooltip on these cells appends `· ~40% chance missed`. Mathematically honest: the redness reflects exactly the engine's per-cell uncertainty given the totals.
+- **Structural mode** — when no `course` prop is provided (e.g. the Semester Calendar tab), past class days render as outlined `future` cells instead of fabricated green; ambiguity calc is skipped. Used by the Semester Calendar screen.
+- **Empty-slot support** — accepts empty `slotDays`. Used by the "No slot — events only" option in the Semester Calendar.
+- **Events visible regardless of slot** — holidays / exams / `other`-type events render in their type colour even on weekdays the slot doesn't meet. Was previously rendered as `off-class` (transparent + faint border) on off-slot weekdays — inconsistent. Fixed.
 - "Today" rendered as a ring overlay so it can coexist with any underlying status.
-- Header summary: total class days, done, upcoming (or "X classes · Y blocked by holiday/exam" for previews).
-- Optional legend; month labels along the top axis.
+- Header summary: total class days · done · upcoming (or `N class days · M blocked by holiday/exam` in structural mode).
+- Optional legend (now includes `Missed (logged)` and `Cancelled` swatches); month labels along the top axis.
 * **Instant in-app hover** — moving the cursor over a cell swaps the cell's date + status into the stats line at the top of the card immediately (no native `title=""` 500 ms delay). The line is `aria-live="polite"` for screen readers.
 * **Layered annotations on hover** — non-blocking academic markers (e.g. Lab FAT week) append their name to the regular cell tooltip ("Past class · Lab FAT week") instead of replacing the cell colour — class days continue to count toward attendance.
 * **Padded matrix edges** — ~4 weeks of empty padding on each side of the semester so the heatmap doesn't run flush against the card boundaries.
 * **Visible month boundaries** — small extra gap (6-8 px) inserted before every column that starts a new calendar month, with bolder month labels above. Boundaries are obvious without separator lines.
-* **Past planned skips no longer counted as "upcoming"** — the past/future tally now keys purely off the date (`cellKey < todayKey`) and the planned-skip overlay only changes the cell colour, not the bucket. Fixes the misleading "X upcoming" count for end-of-semester accounts that have historical planned skips.
-* **Today re-keyed by `toDateString()`** — previously `useMemo([])` froze `today` at first mount, so a long-lived tab kept showing yesterday's "upcoming" cells across the day boundary. Memo now invalidates whenever the day changes.
+* **Past planned skips no longer counted as "upcoming"** — the past/future tally keys purely off the date and the planned-skip overlay only changes the cell colour, not the bucket.
+* **Today re-keyed by `toDateString()`** — memo invalidates whenever the day changes so a long-lived tab doesn't drift.
 
-* ### AttendanceHeatmap (per-course weekly matrix on Insights)
-* - **Redesigned away from the old union-of-class-days grid.** Now a per-course timeseries: rows = courses, columns = ISO weeks of the semester.
-* - Each cell colour-coded by attendance % at the end of that week, derived from the saved `attendanceSnapshots` for that course (latest reading inside each week wins).
-* - Forward-fill across weeks without a snapshot so gaps inherit the prior reading instead of reading as "no data".
-* - Buckets: ≥80% green, 70-79% amber, 60-69% orange, <60% red, faint outline = no reading recorded yet.
-* - Each row ends with the final % and a colour dot in the row's bucket.
-* - Hover any cell to see the exact week index + percentage in the legend area below the grid.
-* - Honest about what it can show: drops the misleading "Missed" / "Attended" labels from the old grid because per-day attendance isn't tracked — only weekly totals are.
+### AttendanceHeatmap (per-course weekly matrix on Insights)
+- Per-course timeseries view: rows = courses, columns = ISO weeks of the semester.
+- Each cell colour-coded by attendance % at the end of that week, derived from the saved `attendanceSnapshots` for that course (latest reading inside each week wins).
+- **No forward-fill.** Weeks without a saved snapshot render as a **dashed-outline no-data cell** (was previously forward-filled from the prior reading, which fabricated colour for unlogged weeks). The gaps now visibly tell the student where they didn't log — and that's the honest signal.
+- Buckets: ≥80% green, 70-79% amber, 60-69% orange, <60% red, dashed outline = no reading recorded that week.
+- Each row ends with the final % and a colour dot in the row's bucket.
+- Hover any cell to see the exact week index + percentage in the legend area below the grid.
+- Legend explicitly labelled `No reading (week not logged)` so the dashed outline is unambiguous.
 
 ### CalendarPlanner (skip planner)
-- Month navigator with previous/next buttons.
-- Disabled days for non-class weekdays and blocked events (holiday/exam/other), with the event name in the tooltip.
-- Clickable future class dates toggle into the planned-skip set.
-- Today is highlighted with an accent ring.
-- "Clear Selections" link removes all planned skips at once.
+Visual makeover this iteration to read as a clean, minimal calendar rather than a noisy spreadsheet.
+
+- Month navigator with previous/next buttons; smaller chevrons; tighter weekday header (`text-[10px]` uppercase tracking).
+- **Strikethrough on blocked dates removed** — replaced with a 50% opacity fade. Date numbers stay readable; the "not selectable" signal is now visual weight, not a heavy diagonal line.
+- **Type-tinted event accent bars** instead of the old generic grey dot. Each event renders as a 2 px coloured underline at the bottom of the cell — purple for holidays, blue for exam/`other`, accent for academic markers. Hue palette matches `SlotHeatmap` so the two views read consistently.
+- **Today** is now a clean accent-ring outline rather than a heavy bg-tint cell — coexists with whatever fill the cell already has (planned-skip, blocked, etc.).
+- **Planned-skip cells** got bolder — solid red bg + white text + `font-semibold` — the highest visual weight on the calendar (which is what they should be, since they're the actionable items).
+- Cell size reduced (`h-9` from `h-11`), `text-xs` from `text-sm`, gap tightened. Calendar takes less vertical real-estate while staying tappable.
+- `border-y` wrapper dropped — calendar feels lighter, breathes more.
+- Disabled state correctly applied (`disabled` attr + cursor) when a date isn't actionable.
+- `Clear Selections` link compacted to `Clear all`.
 
 ---
 
@@ -220,7 +262,9 @@ Full-detail view for a single course with:
 ### Firestore document shape (`users/{uid}`)
 - Profile: `name`, `email` (server-set on create), `role` (server-set: `student` / `admin`).
 - Selection state: `selectedYear`, `selectedCredit`, `selectedSlot`, `slotDays[]`.
-- `courses[]` — full normalized course objects (see §3).
+- `courses[]` — full normalized course objects (`id`, `courseName`, `slotLabel`, `slotDays`, `credit`, `classesTaken`, `classesAttended`, `skippedDates[]`, **`missedDates[]`**, **`cancelledDates[]`**, `lastUpdated`). The two new arrays were added this iteration:
+  - `missedDates[]` — confirmed past misses with exact ISO dates, written by the precise-skip chip picker. Distinct from `skippedDates[]` (forward planning intent). Used by `SlotHeatmap` to render crisp red `missed` cells and to compute `confirmedMissedInPast` for the ambiguity calculation.
+  - `cancelledDates[]` — class days that were on the slot calendar but didn't happen (faculty cancelled, university closure). Excluded from `totalClassDays` / `pastClassDays` / `futureClassDays` in the heatmap so attendance math stays honest. Rendered as slate-grey `cancelled` cells.
 - `attendanceSnapshots[]` — capped at the **last 120** snapshots (`{ id, courseId, attendancePercentage, classesTaken, classesAttended, riskScore, riskLabel, createdAt }`).
 - Notification prefs: `alertEnabled`, `alertThreshold`, `weeklySummaryEnabled`, `notificationChannels.telegram`, `lastEmailSentAt` (server-owned), `lastCheckedAt`.
 - `adminDraft` — staged semester/event/slot config (`semesterName`, `minAttendance`, `lastInstructionalDay`, `eventCount`, `slotVersion`).
@@ -228,15 +272,16 @@ Full-detail view for a single course with:
 
 ### `useUserSync` hook
 - Loads the user document on auth-state change; creates a default scaffold if missing.
-- All mutations (saveSlot, updateAttendance, updateSkips, updateTheme, updatePreferences, deleteCourse, saveAttendanceSnapshot, updateAdminDraft) are local-first; a **1500 ms debounce** then `setDoc(..., { merge: true })`s to Firestore.
-- `serializeUserData` strips server-only fields (`role`, `email`, `lastEmailSentAt`) before every write so the Firestore rules never reject the merge.
+- All mutations (saveSlot, updateAttendance, **updateBulkAttendance**, updateSkips, updateTheme, updatePreferences, deleteCourse, saveAttendanceSnapshot, updateAdminDraft) are local-first; a **1500 ms debounce** then `setDoc(..., { merge: true })`s to Firestore.
+- **`updateBulkAttendance(entries)`** — new this iteration. Accepts an array of `{ courseId, classesTaken, classesAttended, missedDates?, cancelledDates? }` entries and, in a single transaction: writes the new totals onto each course, appends the precise missed / cancelled dates (deduped via `Set` union with the existing arrays), and emits one snapshot per course (using the same per-day dedup as `saveAttendanceSnapshot`). Powers the Update Attendance strip's bulk save path. Trims the snapshot list to the most recent 120 in the same write.
+- `serializeUserData` strips server-only fields (`role`, `email`, `lastEmailSentAt`) before every write so the Firestore rules never reject the merge. Pass-through for `missedDates` and `cancelledDates` was added this iteration.
 - Snapshots are **deduplicated per (course × calendar day)** — saving twice on the same day overwrites the earlier entry.
 
 ### Snapshot mechanics
-* - **Auto-snapshot on attendance change** — whenever the student updates `classesTaken` or `classesAttended` in the planner, the same effect that syncs the new totals to Firestore also writes a snapshot `{ attendancePercentage, classesTaken, classesAttended, riskScore, riskLabel, createdAt }` for the active course. The previous manual "Save trend snapshot" button is removed; the planner shows a small "snapshots save automatically when attendance changes" hint instead.
+* - **Auto-snapshot on attendance change** — whenever the student updates `classesTaken` or `classesAttended` in the planner, the same effect that syncs the new totals to Firestore also writes a snapshot `{ attendancePercentage, classesTaken, classesAttended, riskScore, riskLabel, createdAt }` for the active course. The bulk update path (Update Attendance strip → `updateBulkAttendance`) emits one snapshot per touched course in the same transaction.
 - Snapshots feed both the trend regression on the planner and the EWMA forecast in Insights.
 - Every save trims the snapshot list to the most recent 120 to keep documents small.
-- Same-day snapshots for the same course are deduplicated (`saveAttendanceSnapshot` overwrites the existing entry by `(courseId, calendar day)`), so rapid edits in a single sitting don't pollute the timeseries.
+- Same-day snapshots for the same course are deduplicated by `(courseId, calendar day)`, so rapid edits in a single sitting don't pollute the timeseries.
 
 ### Guest mode
 - Without auth, all state lives in React only — slot selection, attendance values, and skip toggles work end-to-end, just nothing persists.
@@ -318,6 +363,8 @@ Configuration is layered:
 - `npm run test` — Node `--test` suites in `tests/` covering analytics math and endpoint contracts.
 - `npm run attendance:review` — local SMTP scaffold (`scripts/sendAttendanceReview.js`) that mails a placeholder review.
 - `scripts/smokeTest.sh` — hits every API route and asserts the expected status codes; honors `BASE_URL`, `ID_TOKEN`, `CRON_SECRET` env vars for use against deployed environments.
+- `scripts/seedDemoAccount.js` — seeds the **consistent-student** demo account (`abhishek.22bce7566@vitapstudent.ac.in` / `123456`) with 6 theory courses and a clean snapshot trajectory. Use for showing the "ideal" engine output, tight forecast CIs, clear risk verdicts.
+- `scripts/seedInconsistentAccount.js` — seeds the **inconsistent-student** demo account (`reallu654321@gmail.com` / `123456`; script also tries the typo'd `gmai.com` variant) with 6 theory courses across six different updating personas: `consistent` (~weekly snapshots), `abandoned` (4 snapshots all in Dec–Feb then nothing), `bursty` (12 snapshots clustered with same-week double-saves and long gaps), `sparse` (only 3 snapshots all semester), `declining` (7 snapshots showing the slide), `reliable` (10 snapshots in regular weekly cadence). Real `cancelledDates`, mix of logged misses and ambiguous gaps. 45 total snapshots distributed irregularly. Use for showing how the engine behaves under realistic messy data — the heatmap's probability-blended ambiguity rendering, sparse-data CI widening, and risk-drift dot timeline all earn their place against this dataset. Idempotent: re-running cleanly resets the document.
 - Vercel cron registered in `vercel.json` (`30 15 * * 6` UTC).
 - Firestore rules (`firestore.rules`) ship in-repo and deploy via `firebase deploy --only firestore:rules`.
 
